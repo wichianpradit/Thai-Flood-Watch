@@ -60,11 +60,8 @@ app.get("/api/tmd/weather3hours", async (req, res) => {
 
     url.searchParams.set("lat", String(lat));
     url.searchParams.set("lon", String(lon));
-    url.searchParams.set(
-      "fields",
-      "tc,rh,rain,ws10m,wd10m"
-    );
-    url.searchParams.set("duration", "24");
+    url.searchParams.set("fields", "tc,rh");
+    url.searchParams.set("duration", "2");
 
     const response = await fetch(url, {
       method: "GET",
