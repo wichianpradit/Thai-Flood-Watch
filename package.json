@@ -1,8 +1,1 @@
-{
-  "name": "thai-flood-watch-tmd-live",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {"start":"node server.js"},
-  "dependencies": {"dotenv":"^16.4.5","express":"^4.21.1"}
-}
+{"name":"thai-flood-watch","version":"2.0.0","private":true,"type":"module","scripts":{"start":"node server.js"},"dependencies":{"dotenv":"^16.4.5","express":"^4.21.2"}}
