@@ -1,3 +1,4 @@
+
 import express from "express";
 import dotenv from "dotenv";
 
@@ -6,24 +7,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ไฟล์หน้าเว็บ
+app.use(express.json());
 app.use(express.static("public"));
 
 // ===============================
-// HEALTH CHECK
+// THAI FLOOD WATCH - SERVER
 // ===============================
+
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
-    service: "Thai Flood Watch TMD Gateway"
+    service: "Thai Flood Watch",
+    status: "running",
+    tmdConfigured: Boolean(process.env.TMD_TOKEN),
+    time: new Date().toISOString()
   });
 });
 
 // ===============================
-// TMD HOURLY WEATHER
+// TMD WEATHER API
 // ===============================
-app.get("/api/tmd/weather3hours", async (req, res) => {
 
+app.get("/api/tmd/weather3hours", async (req, res) => {
   const token = process.env.TMD_TOKEN;
 
   if (!token) {
@@ -34,25 +39,46 @@ app.get("/api/tmd/weather3hours", async (req, res) => {
   }
 
   try {
+    const url = new URL(
+      "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly"
+    );
 
-    const url =
-      "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
+    // Coordinates may be supplied by the website.
+    // Default: Pattani area.
+    const lat = Number(req.query.lat ?? 6.87);
+    const lon = Number(req.query.lon ?? 101.25);
+
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      lat < -90 || lat > 90 ||
+      lon < -180 || lon > 180
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid coordinates"
+      });
+    }
+
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lon));
 
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "Authorization": `Bearer ${token}`
-      }
+      },
+      signal: AbortSignal.timeout(20000)
     });
 
     const text = await response.text();
 
     if (!response.ok) {
-      return res.status(response.status).json({
+      return res.status(502).json({
         ok: false,
-        status: response.status,
-        error: text
+        upstreamStatus: response.status,
+        error: text.slice(0, 1000)
       });
     }
 
@@ -64,43 +90,44 @@ app.get("/api/tmd/weather3hours", async (req, res) => {
       return res.status(502).json({
         ok: false,
         error: "TMD returned invalid JSON",
-        raw: text
+        details: text.slice(0, 1000)
       });
     }
 
     res.json({
       ok: true,
-      source: "TMD Weather Forecast API",
-      data: data
+      source: "Thailand Meteorological Department",
+      location: { lat, lon },
+      data
     });
 
-  } catch (err) {
-
-    console.error("TMD API ERROR:", err);
-
-    res.status(500).json({
+  } catch (error) {
+    res.status(502).json({
       ok: false,
-      error: err.message
+      error: error.message
     });
-
   }
 });
 
 // ===============================
-// ROOT
+// HOME
 // ===============================
+
 app.get("/", (req, res) => {
   res.json({
     ok: true,
-    service: "Thai Flood Watch",
-    health: "/api/health",
-    weather: "/api/tmd/weather3hours"
+    name: "Thai Flood Watch",
+    endpoints: {
+      health: "/api/health",
+      weather: "/api/tmd/weather3hours"
+    }
   });
 });
 
 // ===============================
 // START SERVER
 // ===============================
-app.listen(PORT, () => {
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Thai Flood Watch running on port ${PORT}`);
 });
