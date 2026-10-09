@@ -8,52 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-/* Thai Flood Watch - Popup and menu layout fix */
 
-/* แถบเมนูด้านซ้าย */
-aside {
-  position: relative;
-  z-index: 900;
-}
-
-/* พื้นที่แผนที่ */
-main {
-  position: relative;
-  z-index: 1;
-}
-
-/* กล่อง Popup ของ Leaflet */
-.leaflet-popup-pane {
-  z-index: 750 !important;
-}
-
-.leaflet-popup {
-  max-width: 320px;
-}
-
-.leaflet-popup-content-wrapper {
-  background: #092137 !important;
-  color: #ffffff !important;
-  border: 1px solid #2b86d7;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px #0008;
-}
-
-.leaflet-popup-content {
-  font-family: "Noto Sans Thai", sans-serif;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-/* กล่องข้อมูลที่ลอยเหนือแผนที่ */
-.map-tabs {
-  z-index: 1100;
-}
-
-/* ป้องกันข้อความถูกตัด */
-.maparea {
-  overflow: hidden;
-}
  <style>
 :root{--bg:#04101d;--panel:#081a2b;--panel2:#0b2136;--line:#173852;--txt:#eef7ff;--muted:#8fa9bd;--blue:#2c82ff;--cyan:#24c8ff;--green:#21d779;--yellow:#ffc23c;--orange:#ff8a24;--red:#ff4055;--violet:#7858ff}
 *{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:"Noto Sans Thai",sans-serif;overflow:hidden}
@@ -76,6 +31,14 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 .leaflet-control-zoom{border:0!important}.leaflet-control-zoom a{background:#09253a!important;color:white!important;border-color:#244b66!important}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#092137;color:#fff}.markerLabel{font-family:"Noto Sans Thai";font-weight:700;color:#fff;text-shadow:0 1px 3px #000;font-size:12px}
 @media(max-width:1150px){header{grid-template-columns:300px 1fr auto}.brand h1{font-size:20px}.rightbar{width:390px}.maparea{right:390px}.metrics{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:820px){.app{grid-template-columns:68px 1fr;grid-template-rows:70px 1fr}header{grid-template-columns:1fr auto;padding:8px 10px}.brand h1{font-size:17px}.brand p,.search,.hbox{display:none}.brand-logo{width:43px;height:43px}.nav{padding:9px;justify-content:center}.nav div:not(.ni){display:none}.download{display:none}.rightbar{display:none}.maparea{right:0;bottom:78px}.bottom{grid-template-columns:1fr}.legend{display:none}.map-tabs{left:8px;right:auto;max-width:calc(100% - 16px);overflow:auto}.map-tabs button{white-space:nowrap}.round:nth-last-child(-n+2){display:none}}
+
+/* V4: module is docked inside main, not a floating overlay over sidebar */
+#modulePanel{position:absolute;z-index:650;top:0;right:0;bottom:82px;width:430px;max-width:100%;overflow:auto;background:#071b2b;border-left:1px solid #2c7197;padding:20px;box-shadow:-8px 0 28px #0005;display:none}
+#modulePanel h2{font-size:18px;margin:0 0 12px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.8;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
+main.module-open .rightbar{display:none}
+main.module-open .maparea{right:430px}
+@media(max-width:1050px){#modulePanel{width:min(430px,65%)}main.module-open .maparea{right:min(430px,65%)}}
+@media(max-width:820px){#modulePanel{width:100%;top:0;bottom:78px}main.module-open .maparea{right:0}}
 </style>
 </head>
 <body>
@@ -137,98 +100,16 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
    </div>
   </div>
  </section>
+ <div id="modulePanel" role="dialog" aria-label="ข้อมูลระบบ" aria-modal="false"><button id="closeModule" style="float:right">✕ ปิด</button><h2 id="moduleTitle"></h2><div id="moduleBody"></div></div>
  <div class="bottom">
   <div class="timeline"><button class="play" id="play">▶</button><div class="tmain"><b>พยากรณ์ฝนรายชั่วโมง (TMD)</b><div class="track"></div><div class="times"><span>16:00</span><span>16:30</span><span>17:00</span><span>17:30</span><span>18:00</span><span>ปัจจุบัน</span></div></div></div>
   <div class="legend"><b>ฝนพยากรณ์รายชั่วโมง (มม.)</b><div class="gradient"></div><div class="lgnums"><span>0</span><span>1</span><span>5</span><span>10</span><span>20</span><span>35</span><span>50</span><span>70+</span></div></div>
  </div>
 </main>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-// TMD forecast integration. All weather layers are model forecasts, not live observations.
-const forecastLayer = L.layerGroup().addTo(map);
-const alertBox = document.getElementById('alerts');
-const rainEl = document.getElementById('rainNow');
-const humidityEl = document.getElementById('humidityNow');
-const windEl = document.getElementById('windNow');
-const directionEl = document.getElementById('directionNow');
-const tempEl = document.getElementById('temp');
-let selected = {lat:6.87, lon:101.25};
-let forecastPoints = [];
-let activeField = 'rain';
-const tabFields = ['rain','rain','rh','ws10m',null,'tc'];
-const fmt = (n, digits=1) => Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : '--';
-const safeTime = value => value ? new Date(value).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '--';
-function showStatus(message, isError=false){
-  alertBox.innerHTML='';
-  const row=document.createElement('div');row.className='alertrow';
-  const txt=document.createElement('div');txt.className='alerttext';
-  const b=document.createElement('b');b.textContent=message;b.style.color=isError?'#ff6478':'#64cfff';
-  const sm=document.createElement('small');sm.textContent='ข้อมูลพยากรณ์จากแบบจำลอง TMD ไม่ใช่ภาพเรดาร์หรือฝนที่กำลังตกจริง';
-  txt.append(b,sm);row.append(txt);alertBox.append(row);
-}
-async function getJSON(url){
-  const response=await fetch(url,{cache:'no-store'});
-  let json;try{json=await response.json();}catch{throw new Error('API ไม่ได้ส่ง JSON');}
-  if(!response.ok || !json.ok)throw new Error(json.error||`HTTP ${response.status}`);
-  return json;
-}
-function currentForecast(forecasts){
-  if(!Array.isArray(forecasts)||!forecasts.length)return null;
-  const now=Date.now();
-  return forecasts.find(f=>new Date(f.time).getTime()>=now-30*60*1000)||forecasts[0];
-}
-function rainColor(v){return v>=20?'#f34352':v>=10?'#ff962e':v>=5?'#e5db38':v>=1?'#32d6aa':'#38bdf8';}
-function drawPoints(){
-  forecastLayer.clearLayers();
-  for(const p of forecastPoints){
-    const f=currentForecast(p.forecasts);
-    if(!f)continue;
-    const v=Number(f.data?.[activeField]);
-    if(!Number.isFinite(v))continue;
-    const rain=Number(f.data?.rain||0);
-    const marker=L.circleMarker([p.lat,p.lon],{radius:Math.max(6,Math.min(16,7+rain/3)),color:'#ffffff',weight:1,fillColor:activeField==='rain'?rainColor(v):'#319dff',fillOpacity:.85});
-    marker.bindPopup(`<b>พยากรณ์ TMD</b><br>เวลา ${safeTime(f.time)}<br>ฝน ${fmt(f.data?.rain)} มม.<br>อุณหภูมิ ${fmt(f.data?.tc)} °C<br>ความชื้น ${fmt(f.data?.rh)}%<br>ลม ${fmt(f.data?.ws10m)} ม./วินาที<br><small>จุดตัวอย่าง ไม่ใช่เรดาร์สด</small>`);
-    marker.on('click',()=>loadLocation(p.lat,p.lon));
-    marker.addTo(forecastLayer);
-  }
-}
-async function loadLocation(lat,lon){
-  selected={lat,lon};showStatus('กำลังโหลดพยากรณ์พิกัด '+fmt(lat,3)+', '+fmt(lon,3));
-  try{
-    const json=await getJSON(`/api/tmd/weather3hours?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
-    const forecasts=json.data?.WeatherForecasts?.[0]?.forecasts;
-    const f=currentForecast(forecasts);
-    if(!f)throw new Error('ไม่พบพยากรณ์สำหรับพิกัดนี้');
-    rainEl.textContent=fmt(f.data?.rain);humidityEl.textContent=fmt(f.data?.rh);
-    windEl.textContent=fmt(f.data?.ws10m);directionEl.textContent=fmt(f.data?.wd10m,0)+'°';
-    tempEl.textContent=fmt(f.data?.tc)+'°C';
-    document.getElementById('updated').textContent='พยากรณ์ '+safeTime(f.time);
-    showStatus(`พยากรณ์ ${safeTime(f.time)} | ฝน ${fmt(f.data?.rain)} มม. | ${fmt(f.data?.tc)}°C`);
-  }catch(e){showStatus('โหลดข้อมูลพิกัดไม่ได้: '+e.message,true);}
-}
-async function loadMap(){
-  try{
-    const json=await getJSON('/api/tmd/rain-map');
-    forecastPoints=(json.points||[]).filter(p=>Array.isArray(p.forecasts)&&p.forecasts.length);
-    drawPoints();
-    if(!forecastPoints.length)showStatus('ไม่มีจุดพยากรณ์ที่โหลดสำเร็จ กรุณาตรวจสอบ TMD API',true);
-  }catch(e){showStatus('โหลดแผนที่พยากรณ์ไม่ได้: '+e.message,true);}
-}
-document.querySelectorAll('.map-tabs button').forEach((button,i)=>{
-  button.addEventListener('click',()=>{
-    if(tabFields[i]===null){showStatus('ข้อมูลคลื่นยังไม่ได้เชื่อม API ที่รองรับ',true);return;}
-    activeField=tabFields[i];drawPoints();
-  });
-});
-map.on('click',event=>loadLocation(event.latlng.lat,event.latlng.lng));
-loadLocation(selected.lat,selected.lon);
-loadMap();
-setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000);
-
-</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([13.0,101.2],5.8);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,opacity:.55}).addTo(map);
 L.tileLayer(
   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   {
@@ -241,7 +122,7 @@ document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelect
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 let playing=false;document.getElementById('play').onclick=e=>{playing=!playing;e.currentTarget.textContent=playing?'Ⅱ':'▶'};
-function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});document.getElementById('date').textContent=d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});document.getElementById('updated').textContent=d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.'}tick();setInterval(tick,1000);
+function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});document.getElementById('date').textContent=d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});/* updated is set from forecast timestamp */}tick();setInterval(tick,1000);
 
 // TMD forecast integration. All weather layers are model forecasts, not live observations.
 const forecastLayer = L.layerGroup().addTo(map);
@@ -287,7 +168,7 @@ function drawPoints(){
     const rain=Number(f.data?.rain||0);
     const marker=L.circleMarker([p.lat,p.lon],{radius:Math.max(6,Math.min(16,7+rain/3)),color:'#ffffff',weight:1,fillColor:activeField==='rain'?rainColor(v):'#319dff',fillOpacity:.85});
     marker.bindPopup(`<b>พยากรณ์ TMD</b><br>เวลา ${safeTime(f.time)}<br>ฝน ${fmt(f.data?.rain)} มม.<br>อุณหภูมิ ${fmt(f.data?.tc)} °C<br>ความชื้น ${fmt(f.data?.rh)}%<br>ลม ${fmt(f.data?.ws10m)} ม./วินาที<br><small>จุดตัวอย่าง ไม่ใช่เรดาร์สด</small>`);
-    marker.on('click',()=>loadLocation(p.lat,p.lon));
+    marker.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);loadLocation(p.lat,p.lon);});
     marker.addTo(forecastLayer);
   }
 }
@@ -326,15 +207,10 @@ setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000)
 
 </script>
 
-<style>
-#modulePanel{position:absolute;z-index:850;top:18px;left:18px;width:min(460px,calc(100% - 36px));max-height:calc(100% - 115px);overflow:auto;background:#071b2bf5;border:1px solid #2c7197;border-radius:17px;padding:18px;box-shadow:0 12px 38px #0009;display:none}
-#modulePanel h2{font-size:18px;margin:0 0 9px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.7;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
-</style>
-<div id="modulePanel" role="dialog" aria-label="ข้อมูลระบบ" aria-modal="false"><button id="closeModule" style="float:right">✕ ปิด</button><h2 id="moduleTitle"></h2><div id="moduleBody"></div></div>
 <script>
 (function(){
 const panel=document.getElementById('modulePanel'), title=document.getElementById('moduleTitle'),body=document.getElementById('moduleBody');
-document.getElementById('closeModule').onclick=()=>panel.style.display='none';
+document.getElementById('closeModule').onclick=()=>{panel.style.display='none';document.querySelector('main').classList.remove('module-open');setTimeout(()=>map.invalidateSize(),80);};
 const link=(url,label)=>`<p><a href="${url}" target="_blank" rel="noopener noreferrer">↗ ${label}</a></p>`;
 const info={
 'ฝนปัจจุบัน':['🌧️ ฝนปัจจุบัน','ข้อมูลบนแผนที่เป็น <b>พยากรณ์รายชั่วโมง</b> จาก TMD ไม่ใช่ปริมาณฝนที่วัดได้จริง เรดาร์ฝนสดเปิดจากหน้าแหล่งข้อมูลทางการด้านล่าง',link('https://weather.tmd.go.th/composite/index_composite.html','เปิดเรดาร์ฝนคอมโพสิท กรมอุตุนิยมวิทยา')],
@@ -347,9 +223,9 @@ const info={
 'จุดช่วยเหลือ':['📍 จุดช่วยเหลือ','ยังไม่มีฐานข้อมูลพิกัดศูนย์พักพิงที่ผ่านการตรวจสอบ กรุณาใช้ช่องทางหน่วยงานรับผิดชอบในพื้นที่ ไม่ใช้หมุดตัวอย่างเป็นจุดช่วยเหลือ','<p class="muted">สถานะ: รอฐานข้อมูลพิกัดที่ตรวจสอบแล้ว</p>'],
 'รายงานสถานการณ์':['📋 รายงานสถานการณ์','แผนที่และข้อมูลพยากรณ์อากาศใช้ประกอบการวางแผนได้ แต่ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ',link('https://www.tmd.go.th/','ประกาศกรมอุตุนิยมวิทยา')+link('https://www.thaiwater.net/','ข้อมูลสถานการณ์น้ำ ThaiWater')]
 };
-function openModule(key){const item=info[key];if(!item)return;title.textContent=item[0];body.innerHTML=`<p>${item[1]}</p>${item[2]||''}`;panel.style.display='block';if(key==='ระดับน้ำในแม่น้ำ')loadWater();}
+function openModule(key){const item=info[key];if(!item)return;title.textContent=item[0];body.innerHTML=`<p>${item[1]}</p>${item[2]||''}`;panel.style.display='block';document.querySelector('main').classList.add('module-open');setTimeout(()=>map.invalidateSize(),80);if(key==='ระดับน้ำในแม่น้ำ')loadWater();}
 async function loadWater(){const target=document.getElementById('waterResults');if(!target)return;try{const r=await fetch('/api/water/stations',{cache:'no-store'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'เชื่อมต่อไม่ได้');const count=Array.isArray(j.data)?j.data.length:(Array.isArray(j.data?.data)?j.data.data.length:null);target.textContent='ต้นทางตอบกลับสำเร็จ'+(count!==null?' • รายการข้อมูล '+count:'')+' รายการ (ยังต้องตรวจสอบโครงสร้างและหน่วยก่อนแสดงระดับน้ำรายสถานี)';}catch(e){target.textContent='ยังดึงข้อมูลไม่ได้: '+e.message;}}
-const nav=document.querySelectorAll('.nav');nav.forEach((n,i)=>{n.addEventListener('click',()=>{if(i===0){panel.style.display='none';return;}const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];openModule(keys[i]);});});
+const nav=document.querySelectorAll('.nav');nav.forEach((n,i)=>{n.addEventListener('click',()=>{if(i===0){panel.style.display='none';document.querySelector('main').classList.remove('module-open');setTimeout(()=>map.invalidateSize(),80);return;}const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];openModule(keys[i]);});});
 const tabs=document.querySelectorAll('.map-tabs button');tabs.forEach((t,i)=>{if([0,1,2,4].includes(i))t.addEventListener('click',()=>{if(i===0)openModule('เรดาร์สภาพอากาศ');if(i===1)openModule('ฝนปัจจุบัน');if(i===2)openModule('เรดาร์สภาพอากาศ');if(i===4)openModule('ลมและคลื่นทะเล');});});
 })();
 </script>
