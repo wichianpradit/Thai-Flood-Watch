@@ -156,6 +156,15 @@ function flattenCameras(root){
 }
 function field(x,keys){for(const k of keys){const v=x[k];if(typeof v==='string'&&v.trim())return v.trim();if(typeof v==='number')return String(v);if(v&&typeof v==='object'&&typeof v.th==='string')return v.th;}return '';}
 function safeCameraURL(v){try{const u=new URL(v);return u.protocol==='https:'?u.href:null;}catch{return null;}}
+// Classification is inferred from source metadata, not a verified site survey.
+function cameraCategory(name,metadata=''){
+ const t=(name+' '+metadata).toLowerCase();
+ if(/เขื่อน|อ่างเก็บน้ำ|dam|reservoir/.test(t))return 'dam';
+ if(/ทางหลวง|ถนน|ทางแยก|สี่แยก|สะพาน|ทางลอด|highway|road|bridge|traffic/.test(t))return 'road';
+ if(/แม่น้ำ|คลอง|ลำน้ำ|ตลิ่ง|river|canal|waterway/.test(t))return 'river';
+ if(/ชุมชน|ตลาด|เทศบาล|เมือง|หมู่บ้าน|community|market/.test(t))return 'community';
+ return 'other';
+}
 function normalizeCamera(c,i){
  const name=field(c,['cctv_name','camera_name','cam_name','station_name','name','title','cctv_station_name'])||field(c.station||{},['name','tele_station_name'])||'กล้อง '+(i+1);
  const province=field(c.geocode||{},['province_name'])||field(c,['province_name','province']);
@@ -164,17 +173,47 @@ function normalizeCamera(c,i){
  const page=safeCameraURL(field(c,['page_url','website','web_url','link','url']));
  const lat=Number(field(c,['latitude','lat','cctv_lat','camera_lat'])||field(c.station||{},['tele_station_lat','lat']));
  const lon=Number(field(c,['longitude','lon','lng','cctv_long','camera_long'])||field(c.station||{},['tele_station_long','lon']));
- return {id:String(field(c,['cctv_id','camera_id','id','code'])||i),name,province,stream,snapshot,page,lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null};
+ const category=cameraCategory(name,field(c,['description','location_name','address','type']));
+ return {category,provider:'ThaiWater',id:String(field(c,['cctv_id','camera_id','id','code'])||i),name,province,stream,snapshot,page,lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null};
 }
+// Additional authorized public feeds can be added without changing code.
+// Set CCTV_EXTRA_FEEDS_JSON to a JSON array of records with name, province,
+// stream/snapshot/page and optional category/provider. Only HTTPS links are accepted.
+function configuredExtraCameras(){
+ let rows=[];
+ try{rows=JSON.parse(process.env.CCTV_EXTRA_FEEDS_JSON||'[]');}catch{return [];}
+ if(!Array.isArray(rows))return [];
+ return rows.slice(0,2000).flatMap((r,i)=>{
+  if(!r||typeof r!=='object'||!r.name||!r.province)return [];
+  const stream=safeCameraURL(r.stream),snapshot=safeCameraURL(r.snapshot),page=safeCameraURL(r.page);
+  if(!stream&&!snapshot&&!page)return [];
+  const name=String(r.name).slice(0,180),province=String(r.province).slice(0,80);
+  const allowed=['dam','road','river','community','other'];
+  return [{id:'extra-'+i,name,province,stream,snapshot,page,
+   category:allowed.includes(r.category)?r.category:cameraCategory(name),
+   provider:String(r.provider||'หน่วยงานเจ้าของกล้อง').slice(0,100),
+   lat:Number.isFinite(Number(r.lat))?Number(r.lat):null,
+   lon:Number.isFinite(Number(r.lon))?Number(r.lon):null}];
+ });
+}
+function mergedCameras(base){
+ const all=[...base,...configuredExtraCameras()],seen=new Set();
+ return all.filter(c=>{const key=[c.provider,c.name,c.province,c.stream||c.snapshot||c.page].join('|');if(seen.has(key))return false;seen.add(key);return true;});
+}
+app.get('/api/cctv/sources',(req,res)=>res.json({ok:true,sources:[
+ {name:'ThaiWater',type:'integrated',note:'รายชื่อกล้องจาก API; ไม่รับรองสตรีมออนไลน์'},
+ {name:'กรมทางหลวง',type:'directory',url:'https://www.highwaytraffic.go.th/',note:'ตรวจสอบสตรีมและสิทธิ์การฝังภาพก่อนเพิ่ม'},
+ {name:'สำนักการระบายน้ำ กรุงเทพมหานคร',type:'directory',url:'https://floodbangkok.bangkok.go.th/',note:'ตรวจสอบสตรีมและสิทธิ์การฝังภาพก่อนเพิ่ม'}
+ ]}));
 app.get('/api/cctv/cameras',async(req,res)=>{
  try{
-  if(Date.now()-cameraCache.at<10*60*1000&&cameraCache.at)return res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:cameraCache.items,streamVerified:false});
+  if(Date.now()-cameraCache.at<10*60*1000&&cameraCache.at)return res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(cameraCache.items),streamVerified:false});
   const r=await fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv',{headers:{Accept:'application/json'},signal:AbortSignal.timeout(14000)});
   if(!r.ok)throw new Error('ThaiWater CCTV HTTP '+r.status);
   const data=await r.json();const rows=flattenCameras(data);
   const items=rows.map(normalizeCamera).filter(c=>c.stream||c.snapshot||c.page);
   cameraCache={at:Date.now(),items};
-  res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:items,streamVerified:false,directoryCount:rows.length});
+  res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(items),streamVerified:false,directoryCount:rows.length});
  }catch(e){res.status(502).json({ok:false,error:'ไม่สามารถเชื่อมรายการกล้อง ThaiWater: '+e.message});}
 });
 app.get('/api/modules/status',(req,res)=>res.json({ok:true,updatedAt:new Date().toISOString(),modules:{forecast:{available:!!process.env.TMD_TOKEN,source:'TMD forecast, not observed rainfall'},rainMap:{available:!!process.env.TMD_TOKEN,source:'TMD sampled forecast, not radar'},water:{available:true,source:'ThaiWater observed station water levels (MSL); situation codes not interpreted'},floodRisk:{available:false},tide:{available:false},radar:{available:false},waves:{available:false},cctv:{available:false},shelters:{available:false}}}));

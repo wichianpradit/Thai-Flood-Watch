@@ -1,4 +1,12 @@
-Thai Flood Watch V16 — Nationwide CCTV
-Replace index.html, server.js, cctv.html with these full files.
-CCTV province filter includes all 77 provinces; cameras are only those actually returned by ThaiWater.
-No fake streams or guarantees of live coverage. Keep TMD_TOKEN configured on Render.
+Thai Flood Watch V17 — CCTV ทุกประเภท (ต่อยอดจาก V16)
+
+แทนที่ index.html, server.js, cctv.html บน GitHub ทั้งไฟล์
+- รักษาหน้าหลัก V16 และกล้อง 3 จอ
+- เพิ่มตัวกรองกล้องถนน/สะพาน, แม่น้ำ/คลอง, ชุมชน/ตลาด, เขื่อน/อ่างเก็บน้ำ, อื่นๆ
+- แสดงแหล่งข้อมูลกล้อง; เพิ่มหน้ารายชื่อแหล่งภายนอกที่ยังไม่เชื่อมสตรีม
+- รองรับสตรีมจริงเพิ่มเติมผ่าน Render environment variable CCTV_EXTRA_FEEDS_JSON (JSON array)
+  ตัวอย่างรูปแบบ (ต้องใส่ลิงก์ที่ได้รับอนุญาตจริงเท่านั้น):
+  [{"name":"ชื่อกล้องจริง","province":"สงขลา","provider":"หน่วยงาน","category":"road","page":"https://example.org/camera"}]
+- ไม่สร้างกล้องสมมุติและไม่อ้างว่าเว็บไซต์หน่วยงานมีสตรีมให้ฝังโดยอัตโนมัติ
+- หมวดหมู่จากชื่อกล้องเป็นการคาดเดา ไม่ใช่การยืนยันจุดติดตั้ง
+- รายการกล้องที่แสดงขึ้นกับ API ThaiWater และฟีดที่ผู้ดูแลเพิ่ม
