@@ -187,7 +187,7 @@ const rainPatchLayer = L.layerGroup();
 let rainMenuSelected = false;
 function updateRainPatches(){
   rainPatchLayer.clearLayers();
-  if(!rainMenuSelected || activeField!=='rain' || (typeof rainV19Mode!=='undefined' && rainV19Mode==='observed')) { map.removeLayer(rainPatchLayer); return; }
+  if(!rainMenuSelected || activeField!=='rain' || (window.rainV19Mode==='observed')) { map.removeLayer(rainPatchLayer); return; }
   rainPatchLayer.addTo(map);
   for(const p of forecastPoints){
     const f=currentForecast(p.forecasts);
@@ -210,7 +210,7 @@ function setRainMapMode(on){
   drawPoints();
   let legend=document.getElementById('rainForecastLegend');
   if(!legend){legend=document.createElement('div');legend.id='rainForecastLegend';legend.style.cssText='position:absolute;z-index:650;left:12px;bottom:100px;max-width:290px;padding:12px;border:1px solid #326080;border-radius:12px;background:#061b2de8;color:#fff;font:12px sans-serif;line-height:1.65;box-shadow:0 6px 18px #0008;pointer-events:none';document.querySelector('.maparea').appendChild(legend);}
-  legend.style.display=(on && rainV19Mode!=='observed')?'block':'none';
+  legend.style.display=(on && window.rainV19Mode!=='observed')?'block':'none';
   legend.innerHTML='<b>🌧️ แผนที่ฝนพยากรณ์ TMD</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="color:#32d6aa">● เบา 1–4.9</span><span style="color:#e5db38">● ปานกลาง 5–9.9</span><span style="color:#ff962e">● หนัก 10–19.9</span><span style="color:#f34352">● สูง ≥20</span></div><small>มม. ตามช่วงพยากรณ์ API · วงสีแสดงเฉพาะบริเวณใกล้จุดตัวอย่าง ไม่ใช่เรดาร์ฝนสดหรือปริมาณฝนจริงทั่วประเทศ · คลิกแผนที่เพื่อดูข้อมูลด้านขวา</small>';
 }
 window.setRainMapMode=setRainMapMode;
@@ -361,6 +361,7 @@ const stat=(label,value,unit='')=>`<div class="moduleStat"><small>${label}</smal
 const grid=(items)=>'<div class="moduleGrid">'+items.join('')+'</div>';
 const pending=(label)=>note('ยังไม่มีข้อมูล '+label+' จาก API ที่เชื่อมต่อและตรวจสอบแล้ว เมื่อเชื่อมสำเร็จจะแสดงข้อมูลที่นี่โดยตรง ไม่ต้องออกจากเว็บไซต์');
 let rainV19Mode='observed';
+window.rainV19Mode=rainV19Mode;
 const v19Escape=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function v19Card(icon,label,value,unit='',kind='') {return `<div class="v19-weather-card"><div class="emoji">${icon}</div><div class="label">${label}</div><div class="value">${v19Escape(value??'--')}</div><div class="unit">${v19Escape(unit)} ${kind?('· '+v19Escape(kind)):''}</div></div>`;}
 function v19Buttons(selected){return `<div class="v19-actions"><button type="button" data-v19="observed" class="${selected==='observed'?'selected':''}">🌧️ ฝนปัจจุบัน</button><button type="button" data-v19="forecast-hourly" class="${selected==='forecast-hourly'?'selected':''}">⏱️ รายชั่วโมง</button><button type="button" data-v19="seven" class="${selected==='seven'?'selected':''}">📅 พยากรณ์ 7 วัน</button></div>`;}
@@ -372,7 +373,7 @@ function v20RadarEmbed(){
  <div style="font-size:12px;color:#b6cee1;margin-top:8px">หากภาพว่าง แสดงว่าเว็บต้นทางอาจไม่อนุญาตให้ฝังหน้าเว็บ หรือการเชื่อมต่อล้มเหลว <a href="https://weather.tmd.go.th/composite/index_composite.html" target="_blank" rel="noopener noreferrer" style="color:#8bdcff">ตรวจสอบภาพที่ต้นทาง</a></div>
  </section>`;
 }
-function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;v21EnableRadar(openKey==='ฝนปัจจุบัน'&&rainV19Mode==='observed');updateRainPatches();const legend=document.getElementById('rainForecastLegend');if(legend)legend.style.display=rainV19Mode==='observed'?'none':'block';loadRainV19();}));}
+function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;window.rainV19Mode=rainV19Mode;v21EnableRadar(openKey==='ฝนปัจจุบัน'&&rainV19Mode==='observed');updateRainPatches();const legend=document.getElementById('rainForecastLegend');if(legend)legend.style.display=rainV19Mode==='observed'?'none':'block';loadRainV19();}));}
 async function loadRainV19(){
  if(openKey!=='ฝนปัจจุบัน')return;
  body.innerHTML=v19Buttons(rainV19Mode)+note('กำลังเตรียมข้อมูล...');v19WireButtons();
