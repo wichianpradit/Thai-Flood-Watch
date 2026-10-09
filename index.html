@@ -213,9 +213,9 @@ function show(key){
  openKey=key;title.textContent=headings[key]||key;panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
- else if(key==='พื้นที่เสี่ยงน้ำท่วม')body.innerHTML=pending('แผนที่พื้นที่เสี่ยงน้ำท่วมและเกณฑ์แจ้งเตือน');
+ else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadRainSamples(key);
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
- else if(key==='เรดาร์สภาพอากาศ')body.innerHTML=pending('ภาพเรดาร์ฝนล่าสุดที่ได้รับสิทธิให้นำมาแสดงในเว็บ');
+ else if(key==='เรดาร์สภาพอากาศ')loadRainSamples(key);
  else if(key==='CCTV')body.innerHTML=pending('ภาพสดจากกล้องสาธารณะที่อนุญาตให้เผยแพร่');
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }
@@ -233,6 +233,18 @@ async function loadWeather(key){
  if(key==='ลมและคลื่นทะเล')body.innerHTML=location+grid([stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที'),stat('ทิศทางลม',fmt(d.wd10m,0),'องศา')])+pending('ความสูงคลื่นและคาบคลื่น');
  if(key==='รายงานสถานการณ์')body.innerHTML=location+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ลม',fmt(d.ws10m),'ม./วินาที')])+note('สรุปนี้เป็นข้อมูลแบบจำลอง TMD ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ');
  }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลได้: '+String(e.message).replaceAll('<','&lt;'));}
+}
+async function loadRainSamples(key){
+ body.innerHTML=note('กำลังโหลดข้อมูลฝนพยากรณ์ตามจุดตัวอย่างทั่วประเทศไทยจาก TMD...');
+ try{
+  const j=await getJSON('/api/tmd/rain-map');
+  if(openKey!==key)return;
+  const points=(j.points||[]).filter(p=>Array.isArray(p.forecasts)&&p.forecasts.length);
+  const rows=points.map(p=>{const f=currentForecast(p.forecasts);const rain=Number(f?.data?.rain);return {lat:p.lat,lon:p.lon,rain:Number.isFinite(rain)?rain:null,time:f?.time};}).filter(p=>p.rain!==null).sort((a,b)=>b.rain-a.rain);
+  if(!rows.length){body.innerHTML=note('ยังไม่พบข้อมูลพยากรณ์ที่ใช้งานได้จาก TMD');return;}
+  const heading=key==='เรดาร์สภาพอากาศ'?'ข้อมูลทดแทนระหว่างรอเชื่อมเรดาร์จริง':'ข้อมูลประกอบการประเมินพื้นที่ฝนตก';
+  body.innerHTML=note(heading+' — ตัวเลขต่อไปนี้เป็น <b>พยากรณ์ฝนจากแบบจำลอง TMD</b> ไม่ใช่เรดาร์สด และไม่ใช่ประกาศพื้นที่เสี่ยงน้ำท่วม')+grid([stat('จุดตัวอย่างที่มีข้อมูล',rows.length,'จุด'),stat('ฝนพยากรณ์สูงสุด',fmt(rows[0].rain),'มม. ณ จุดตัวอย่าง')])+ '<h3 style="margin:14px 0 8px">จุดที่พยากรณ์ฝนสูงสุด</h3>'+rows.slice(0,10).map(p=>`<div class="item">พิกัด ${fmt(p.lat,2)}, ${fmt(p.lon,2)}<br><b>ฝนพยากรณ์ ${fmt(p.rain)} มม.</b><br><small>เวลา ${safeTime(p.time)}</small></div>`).join('')+pending(key==='เรดาร์สภาพอากาศ'?'ภาพเรดาร์จริง':'แผนที่ความเสี่ยงน้ำท่วมจากหน่วยงานทางการ');
+ }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลพยากรณ์: '+String(e.message).replaceAll('<','&lt;'));}
 }
 async function loadWater(){
  body.innerHTML=note('กำลังตรวจสอบ API สถานีระดับน้ำ...');

@@ -1,11 +1,6 @@
-THAI FLOOD WATCH - Rain Forecast Map
-
-1. Replace repository root server.js with this server.js.
-2. Create public/ directory in repository root and upload public/index.html.
-3. Keep your existing package.json if it already starts with `node server.js` and uses Express and dotenv.
-   Otherwise use the included package.json.
-4. Render environment variable TMD_TOKEN must remain configured.
-5. Deploy and open https://thai-flood-watch.onrender.com/
-
-NOTE: TMD sample points are model forecasts, not actual rain radar or a continuous national precipitation grid.
-TMD can rate limit requests; server caches each point for 30 minutes.
+Thai Flood Watch V6
+1. Upload index.html to the same location as the currently active index.html (public/index.html if that exists).
+2. Replace root server.js with server.js.
+3. Commit changes and wait for Render deployment.
+4. Existing TMD_TOKEN stays in Render environment; do not upload .env.
+Note: Radar/risk pages display clearly labelled TMD forecast samples, NOT live radar or official flood-risk data.
