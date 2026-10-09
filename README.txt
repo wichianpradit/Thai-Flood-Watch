@@ -1,6 +1,5 @@
-Thai Flood Watch V6
-1. Upload index.html to the same location as the currently active index.html (public/index.html if that exists).
-2. Replace root server.js with server.js.
-3. Commit changes and wait for Render deployment.
-4. Existing TMD_TOKEN stays in Render environment; do not upload .env.
-Note: Radar/risk pages display clearly labelled TMD forecast samples, NOT live radar or official flood-risk data.
+Thai Flood Watch V7 - Water station support
+
+Replace index.html and server.js in the same locations as your existing files. If your site serves public/index.html, replace that file rather than root index.html. Commit both changes to GitHub and wait for Render Live. Keep TMD_TOKEN configured on Render.
+
+/api/water/stations now returns normalized stations. /api/water/stations/raw preserves the original response. The UI shows observed MSL levels, previous changes, station names and search. It does not interpret situation_level as an official warning.

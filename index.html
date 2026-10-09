@@ -246,17 +246,39 @@ async function loadRainSamples(key){
   body.innerHTML=note(heading+' — ตัวเลขต่อไปนี้เป็น <b>พยากรณ์ฝนจากแบบจำลอง TMD</b> ไม่ใช่เรดาร์สด และไม่ใช่ประกาศพื้นที่เสี่ยงน้ำท่วม')+grid([stat('จุดตัวอย่างที่มีข้อมูล',rows.length,'จุด'),stat('ฝนพยากรณ์สูงสุด',fmt(rows[0].rain),'มม. ณ จุดตัวอย่าง')])+ '<h3 style="margin:14px 0 8px">จุดที่พยากรณ์ฝนสูงสุด</h3>'+rows.slice(0,10).map(p=>`<div class="item">พิกัด ${fmt(p.lat,2)}, ${fmt(p.lon,2)}<br><b>ฝนพยากรณ์ ${fmt(p.rain)} มม.</b><br><small>เวลา ${safeTime(p.time)}</small></div>`).join('')+pending(key==='เรดาร์สภาพอากาศ'?'ภาพเรดาร์จริง':'แผนที่ความเสี่ยงน้ำท่วมจากหน่วยงานทางการ');
  }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลพยากรณ์: '+String(e.message).replaceAll('<','&lt;'));}
 }
-async function loadWater(){
- body.innerHTML=note('กำลังตรวจสอบ API สถานีระดับน้ำ...');
- try{
- const r=await fetch('/api/water/stations',{cache:'no-store'});
- const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'API ไม่พร้อม');
- if(openKey!=='ระดับน้ำในแม่น้ำ')return;
- const items=Array.isArray(j.data)?j.data:(Array.isArray(j.data?.data)?j.data.data:null);
- if(!items) {body.innerHTML=note('API ตอบกลับแล้ว แต่รูปแบบข้อมูลยังไม่รองรับการแสดงค่ารายสถานี');return;}
- body.innerHTML=stat('จำนวนรายการจาก API',items.length,'รายการ')+note('ระบบรับข้อมูลได้แล้ว แต่ต้องตรวจสอบชื่อสถานี หน่วยวัด และเวลาตรวจวัดก่อนแสดงระดับน้ำรายสถานี');
- }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ยังไม่สามารถโหลดสถานีระดับน้ำ: '+String(e.message).replaceAll('<','&lt;'));}
+const escapeWater=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let waterStations=[];
+function renderWater(filter=''){
+ const needle=filter.trim().toLocaleLowerCase('th');
+ const matches=waterStations.filter(s=>[s.name,s.province,s.district,s.basin,s.river,s.code].some(x=>String(x||'').toLocaleLowerCase('th').includes(needle)));
+ const withLevel=matches.filter(s=>s.levelMsl!==null);
+ const input=document.getElementById('waterSearch');
+ const position=input?input.selectionStart:null;
+ const list=matches.slice(0,60).map(s=>{
+  const level=s.levelMsl===null?'ไม่มีข้อมูล':Number(s.levelMsl).toFixed(2)+' ม.';
+  const change=s.changeM===null?'ไม่มีค่าก่อนหน้า':(s.changeM>0?'↑ +':s.changeM<0?'↓ ':'→ ')+Number(s.changeM).toFixed(2)+' ม.';
+  const coordinates=s.lat!==null&&s.lon!==null?`<small>พิกัด ${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</small>`:'';
+  return `<div class="item"><b>${escapeWater(s.name)}</b> <small>${escapeWater(s.code)}</small><br><small>${escapeWater(s.province||'ไม่ระบุจังหวัด')} • ${escapeWater(s.river||s.basin||'ไม่ระบุลำน้ำ')}</small><div style="font-size:21px;color:#6bd9ff;font-weight:700;margin:5px 0">${level} <small style="font-size:11px;color:#b9d8eb">เทียบระดับทะเลปานกลาง</small></div><small>เปลี่ยนจากค่าก่อนหน้า: ${change}</small><br><small>ตรวจวัด: ${escapeWater(s.observedAt||'ไม่ระบุ')} น. (เวลาไทยตามแหล่งข้อมูล)</small><br>${coordinates}</div>`;
+ }).join('');
+ body.innerHTML=note('ข้อมูลตรวจวัดจาก ThaiWater • ระดับน้ำเป็นเมตรเทียบระดับทะเลปานกลาง (MSL) ไม่ใช่ความลึกของน้ำหรือความสูงจากตลิ่ง • รหัสสถานการณ์ยังไม่ถูกแปลเป็นคำเตือน')+
+ grid([stat('สถานีที่พบ',matches.length,'สถานี'),stat('มีค่าระดับน้ำ',withLevel.length,'สถานี')])+
+ '<label for="waterSearch" style="display:block;margin:12px 0 5px">ค้นหาชื่อสถานี จังหวัด หรือแม่น้ำ</label>'+
+ `<input id="waterSearch" type="search" placeholder="เช่น ยะลา ปัตตานี เจ้าพระยา" value="${escapeWater(filter)}" style="box-sizing:border-box;width:100%;padding:11px;border-radius:9px;background:#102e43;color:white;border:1px solid #3b7899">`+
+ `<div style="margin:8px 0;color:#a9c4d7;font-size:12px">แสดง ${Math.min(matches.length,60)} จาก ${matches.length} สถานี</div>`+
+ (list||note('ไม่พบสถานีที่ตรงกับคำค้นหา'));
+ const next=document.getElementById('waterSearch');if(next&&position!==null){next.focus();next.setSelectionRange(position,position);}
 }
+async function loadWater(){
+ body.innerHTML=note('กำลังโหลดข้อมูลระดับน้ำรายสถานีจาก ThaiWater...');
+ try{
+  const r=await fetch('/api/water/stations',{cache:'no-store'});
+  const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'API ไม่พร้อม');
+  if(openKey!=='ระดับน้ำในแม่น้ำ')return;
+  if(!Array.isArray(j.stations))throw new Error('รูปแบบข้อมูลสถานีไม่ถูกต้อง');
+  waterStations=j.stations;renderWater();
+ }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
+}
+body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
 document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';openKey='';});
 document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';openKey='';return;}show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
