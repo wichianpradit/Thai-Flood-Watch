@@ -118,6 +118,39 @@ function tick(){const d=new Date();document.getElementById('clock').textContent=
 
 // TMD forecast integration. All weather layers are model forecasts, not live observations.
 const forecastLayer = L.layerGroup().addTo(map);
+// V13: colored rainfall forecast patches around sampled TMD points.
+// These are NOT radar measurements, and areas between samples are not verified.
+const rainPatchLayer = L.layerGroup();
+let rainMenuSelected = false;
+function updateRainPatches(){
+  rainPatchLayer.clearLayers();
+  if(!rainMenuSelected || activeField!=='rain') { map.removeLayer(rainPatchLayer); return; }
+  rainPatchLayer.addTo(map);
+  for(const p of forecastPoints){
+    const f=currentForecast(p.forecasts);
+    const raw=f?.data?.rain;
+    if(raw===null||raw===undefined||raw==='')continue;
+    const mm=Number(raw);
+    if(!Number.isFinite(mm)||mm<=0)continue;
+    const color=rainColor(mm);
+    const radius=mm>=20?85000:mm>=10?70000:mm>=5?55000:40000;
+    // Transparent overlapping rings, centered only on actual sampled forecast points.
+    L.circle([p.lat,p.lon],{radius,color,stroke:false,fillColor:color,fillOpacity:.10,interactive:false}).addTo(rainPatchLayer);
+    L.circle([p.lat,p.lon],{radius:radius*.64,color,stroke:false,fillColor:color,fillOpacity:.16,interactive:false}).addTo(rainPatchLayer);
+    L.circle([p.lat,p.lon],{radius:radius*.32,color,stroke:false,fillColor:color,fillOpacity:.25,interactive:false}).addTo(rainPatchLayer);
+  }
+}
+function setRainMapMode(on){
+  rainMenuSelected=on;
+  activeField='rain';
+  updateRainPatches();
+  drawPoints();
+  let legend=document.getElementById('rainForecastLegend');
+  if(!legend){legend=document.createElement('div');legend.id='rainForecastLegend';legend.style.cssText='position:absolute;z-index:650;left:12px;bottom:100px;max-width:290px;padding:12px;border:1px solid #326080;border-radius:12px;background:#061b2de8;color:#fff;font:12px sans-serif;line-height:1.65;box-shadow:0 6px 18px #0008;pointer-events:none';document.querySelector('.maparea').appendChild(legend);}
+  legend.style.display=on?'block':'none';
+  legend.innerHTML='<b>🌧️ แผนที่ฝนพยากรณ์ TMD</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="color:#32d6aa">● เบา 1–4.9</span><span style="color:#e5db38">● ปานกลาง 5–9.9</span><span style="color:#ff962e">● หนัก 10–19.9</span><span style="color:#f34352">● สูง ≥20</span></div><small>มม. ตามช่วงพยากรณ์ API · วงสีแสดงเฉพาะบริเวณใกล้จุดตัวอย่าง ไม่ใช่เรดาร์ฝนสดหรือปริมาณฝนจริงทั่วประเทศ · คลิกแผนที่เพื่อดูข้อมูลด้านขวา</small>';
+}
+window.setRainMapMode=setRainMapMode;
 const alertBox = document.getElementById('alerts');
 const rainEl = document.getElementById('rainNow');
 const humidityEl = document.getElementById('humidityNow');
@@ -163,6 +196,7 @@ function drawPoints(){
     marker.on('click',()=>loadLocation(p.lat,p.lon));
     marker.addTo(forecastLayer);
   }
+  updateRainPatches();
 }
 async function loadLocation(lat,lon){
   selected={lat,lon};showStatus('กำลังโหลดพยากรณ์พิกัด '+fmt(lat,3)+', '+fmt(lon,3));
@@ -176,6 +210,7 @@ async function loadLocation(lat,lon){
     tempEl.textContent=fmt(f.data?.tc)+'°C';
     document.getElementById('updated').textContent='พยากรณ์ '+safeTime(f.time);
     showStatus(`พยากรณ์ ${safeTime(f.time)} | ฝน ${fmt(f.data?.rain)} มม. | ${fmt(f.data?.tc)}°C`);
+    if(typeof window.renderSelectedRainForecast==='function')window.renderSelectedRainForecast(f);
   }catch(e){showStatus('โหลดข้อมูลพิกัดไม่ได้: '+e.message,true);}
 }
 async function loadMap(){
@@ -242,13 +277,14 @@ const dashboardOverview=document.getElementById('dashboardOverview');
 const title=document.getElementById('moduleTitle');
 const body=document.getElementById('moduleBody');
 const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];
-const headings={'ฝนปัจจุบัน':'🌧️ พยากรณ์ฝนรายชั่วโมง (ไม่ใช่ฝนสด)','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
+const headings={'ฝนปัจจุบัน':'🌧️ แผนที่ฝนพยากรณ์ TMD (ไม่ใช่เรดาร์สด)','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
 const note=(message)=>`<div class="moduleNote">${message}</div>`;
 const stat=(label,value,unit='')=>`<div class="moduleStat"><small>${label}</small><strong>${value}</strong><small>${unit}</small></div>`;
 const grid=(items)=>'<div class="moduleGrid">'+items.join('')+'</div>';
 const pending=(label)=>note('ยังไม่มีข้อมูล '+label+' จาก API ที่เชื่อมต่อและตรวจสอบแล้ว เมื่อเชื่อมสำเร็จจะแสดงข้อมูลที่นี่โดยตรง ไม่ต้องออกจากเว็บไซต์');
 let openKey='';
 function show(key){
+ if(typeof window.setRainMapMode==='function')window.setRainMapMode(key==='ฝนปัจจุบัน');
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
@@ -258,6 +294,14 @@ function show(key){
  else if(key==='CCTV'){body.innerHTML=note('รายชื่อกล้องจริงจาก ThaiWater แสดงในส่วน CCTV ด้านล่าง • กดเลือกกล้องเพื่อดูภาพหากสตรีมรองรับ');loadCCTV();}
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }
+window.renderSelectedRainForecast=function(f){
+ if(openKey!=='ฝนปัจจุบัน'||!f)return;
+ const d=f.data||{};
+ const raw=d.rain;
+ const mm=raw===null||raw===undefined||raw===''?NaN:Number(raw);
+ const label=!Number.isFinite(mm)?'ไม่มีข้อมูล':mm>=20?'ฝนพยากรณ์สูง':mm>=10?'ฝนพยากรณ์หนัก':mm>=5?'ฝนพยากรณ์ปานกลาง':mm>=1?'ฝนพยากรณ์เบา':'พยากรณ์ไม่มีฝน';
+ body.innerHTML=note('📍 พิกัดที่คลิก '+fmt(selected.lat,4)+', '+fmt(selected.lon,4)+'<br>ข้อมูลพยากรณ์จาก TMD เวลา '+safeTime(f.time)+'<br><b>'+label+'</b> • ไม่ใช่ข้อมูลฝนตกจริง')+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม. ตามช่วงเวลาพยากรณ์'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที')])+note('พื้นที่สีบนแผนที่เป็นการแสดงภาพรอบจุดตัวอย่าง TMD ไม่ใช่ภาพเรดาร์สด และไม่ได้ยืนยันว่าฝนตกทั่วบริเวณสี');
+};
 async function loadWeather(key){
  body.innerHTML=note('กำลังดึงพยากรณ์ TMD สำหรับพิกัดที่เลือก...');
  try{
@@ -268,7 +312,7 @@ async function loadWeather(key){
  if(!f)throw new Error('ไม่พบพยากรณ์ในพิกัดนี้');
  const d=f.data||{};
  const location=note(`พิกัด ${fmt(selected.lat,3)}, ${fmt(selected.lon,3)} • พยากรณ์เวลา ${safeTime(f.time)}<br>เป็นข้อมูลพยากรณ์ ไม่ใช่ค่าตรวจวัดฝนสด`);
- if(key==='ฝนปัจจุบัน')body.innerHTML=note('ยังไม่มีข้อมูลฝนที่ตรวจวัดจริงจากสถานีหรือเรดาร์ • ด้านล่างเป็นข้อมูลพยากรณ์จาก TMD เท่านั้น')+location+grid([stat('ปริมาณฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที')])+note('เลือกตำแหน่งบนแผนที่เพื่อเปลี่ยนพิกัด แล้วกดเมนูนี้อีกครั้งเพื่อดูข้อมูลจุดใหม่');
+ if(key==='ฝนปัจจุบัน')window.renderSelectedRainForecast(f);
  if(key==='ลมและคลื่นทะเล')body.innerHTML=location+grid([stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที'),stat('ทิศทางลม',fmt(d.wd10m,0),'องศา')])+pending('ความสูงคลื่นและคาบคลื่น');
  if(key==='รายงานสถานการณ์')body.innerHTML=location+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ลม',fmt(d.ws10m),'ม./วินาที')])+note('สรุปนี้เป็นข้อมูลแบบจำลอง TMD ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ');
  }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลได้: '+String(e.message).replaceAll('<','&lt;'));}
@@ -360,8 +404,8 @@ async function loadWater(){
  }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
-document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';openKey='';floodFlagLayer.clearLayers();});
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
+document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);openKey='';floodFlagLayer.clearLayers();});
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 })();
 </script>
