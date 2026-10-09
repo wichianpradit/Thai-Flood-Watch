@@ -71,12 +71,13 @@ header{grid-template-columns:minmax(245px,410px) minmax(150px,1fr) minmax(280px,
 
 /* V19: Weather and radar data cards within existing right column */
 .v19-actions{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.v19-actions button{border:1px solid #2b6689;background:#0d3149;color:#d7efff;border-radius:9px;padding:8px 10px;font-size:11px;cursor:pointer}.v19-actions button.selected{background:#126ca2;border-color:#60c9ff;color:white}.v19-weather-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.v19-weather-card{border:1px solid #25506c;background:linear-gradient(155deg,#0c2c43,#081a2c);border-radius:12px;padding:12px 5px;text-align:center;min-width:0}.v19-weather-card .emoji{font-size:22px}.v19-weather-card .label{font-size:10px;color:#9ec5db;margin:6px 0}.v19-weather-card .value{font-size:17px;font-weight:800;color:#e8f9ff;overflow-wrap:anywhere}.v19-weather-card .unit{font-size:9px;color:#7ca6c1}.v19-seven{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v19-day{border:1px solid #22506e;border-radius:11px;padding:10px;background:#0b2a40;font-size:11px;line-height:1.8}.v19-day strong{color:#9ce2ff}.v19-warning{font-size:11px;line-height:1.7;color:#e5c58a;background:#3c2b1b;border:1px solid #805f33;padding:10px;border-radius:10px}
+.v22intro{background:#0c324a;border:1px solid #2d6884;padding:12px;border-radius:12px;margin-bottom:12px}.v22intro b,.v22intro small{display:block}.v22intro small{font-size:11px;color:#b5d1e0;margin-top:6px;line-height:1.6}.v22card{border:1px solid #28506d;border-radius:12px;background:linear-gradient(135deg,#0b2a41,#123951);padding:13px;margin:10px 0}.v22label{font-weight:700;font-size:13px;color:#d3ecff}.v22value{font-size:17px;font-weight:800;color:#6ed5ff;margin:8px 0}.v22detail{font-size:11px;line-height:1.7;color:#afc9d9;overflow-wrap:anywhere}.v22loc{margin-top:10px!important;font-size:11px!important}.v22footer{margin:12px 0;color:#afc9d9;font-size:11px;line-height:1.8}
 </style>
 </head>
 <body>
 <div class="app">
 <header>
- <div class="brand"><div class="brand-logo">💧</div><div><h1>Thai Flood Watch</h1><p>แผนที่พยากรณ์อากาศจาก TMD</p><p style="color:#38bdf8;font-size:11px;font-weight:700;letter-spacing:.5px;margin-top:2px">By Tai Pond Pattani</p></div></div>
+ <div class="brand"><div class="brand-logo">💧</div><div><h1>Thai Flood Watch</h1><p>แผนที่พยากรณ์อากาศจาก TMD <span style="color:#38bdf8;font-weight:700;white-space:nowrap">By Tai Pond Pattani</span></p></div></div>
  <div class="search">⌕ <input placeholder="ค้นหาจังหวัด / อำเภอ / สถานที่..."><span>⚙</span></div>
  <div class="national-summary" aria-label="สถานการณ์ประเทศไทย ข้อมูลพยากรณ์จุดที่เลือก">
   <div class="national-summary-title"><strong>📊 สถานการณ์ประเทศไทย</strong><small>ข้อมูลจุดที่เลือก · <span id="updated">--</span></small></div>
@@ -157,6 +158,7 @@ async function v21EnableRadar(on){
  }catch(e){document.getElementById('v21RadarTime').textContent='ยังโหลดเรดาร์ไม่ได้: '+e.message;}
 }
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
+v22GoHome();
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 let playing=false;document.getElementById('play').onclick=e=>{playing=!playing;e.currentTarget.textContent=playing?'Ⅱ':'▶'};
@@ -391,6 +393,51 @@ async function loadRadarWeather(){
  v19Card('📡','เรดาร์ฝน','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('🌧️','ฝนตรวจวัด','ไม่มีข้อมูล','มม.','ยังไม่เชื่อม'),v19Card('🌡️','อุณหภูมิ','--','°C','พยากรณ์'),v19Card('💧','ความชื้น','--','%','พยากรณ์'),v19Card('💨','ความเร็วลม','--','ม./วินาที','พยากรณ์'),v19Card('🧭','ทิศลม','--','องศา','พยากรณ์'),v19Card('🌊','คลื่น','ไม่มีข้อมูล','ม.','ยังไม่เชื่อม'),v19Card('🔘','ความกดอากาศ','ไม่มีข้อมูล','hPa','ยังไม่เชื่อม'),v19Card('👁️','ทัศนวิสัย','ไม่มีข้อมูล','กม.','ยังไม่เชื่อม'),v19Card('☁️','เมฆ','ไม่มีข้อมูล','%','ยังไม่เชื่อม'),v19Card('⛈️','พายุ','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('☀️','UV','ไม่มีข้อมูล','','ยังไม่เชื่อม')].join('')+'</div>'+note('ค่าที่ไม่มี API ตรวจสอบได้จะแสดงไม่มีข้อมูล ไม่ใช้ข้อมูลจำลอง');
  try{const j=await getJSON(`/api/tmd/weather3hours?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='เรดาร์สภาพอากาศ')return;const f=currentForecast(j.data?.WeatherForecasts?.[0]?.forecasts||[]);if(!f)return;const d=f.data||{};const cards=body.querySelectorAll('.v19-weather-card .value');[[2,d.tc],[3,d.rh],[4,d.ws10m],[5,d.wd10m]].forEach(([i,v])=>{if(v!==null&&v!==undefined&&v!=='')cards[i].textContent=fmt(v)});body.insertAdjacentHTML('beforeend',note('ค่าอุณหภูมิ ความชื้น และลมข้างต้นเป็น <b>พยากรณ์ TMD</b> เวลา '+safeTime(f.time)+' ไม่ใช่ค่าตรวจวัดสด'));}catch(e){body.insertAdjacentHTML('beforeend',note('พยากรณ์ TMD ไม่พร้อม: '+v19Escape(e.message)));}
 }
+// V22: National overview. Rankings use only verified, comparable live sources.
+let v22OverviewRequest=0;
+function v22Card(icon,heading,main,sub,clickable=''){
+ return `<div class="v22card"><div class="v22label">${icon} ${v19Escape(heading)}</div><div class="v22value">${v19Escape(main)}</div><div class="v22detail">${v19Escape(sub)}</div>${clickable}</div>`;
+}
+function v22ResetLayers(){
+ if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);
+ if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);
+ v21EnableRadar(false);floodFlagLayer.clearLayers();
+}
+function v22GoHome(){
+ v22ResetLayers();openKey='แผนที่รวม';
+ document.querySelectorAll('.nav').forEach((n,i)=>n.classList.toggle('active',i===0));
+ map.setView([13.0,101.2],5.8);
+ dashboardOverview.style.display='none';panel.style.display='block';
+ title.textContent='🇹🇭 ภาพรวมสถานการณ์ประเทศไทย';
+ body.innerHTML=note('กำลังตรวจสอบข้อมูลสถานการณ์จากแหล่งข้อมูลที่เชื่อมต่อ...');
+ const request=++v22OverviewRequest;
+ v22LoadOverview(request);
+}
+async function v22LoadOverview(request){
+ const unavailable='ยังไม่มีข้อมูลตรวจวัดที่ยืนยันได้';
+ const cards=[
+  v22Card('🌧️','จังหวัดฝนตกหนักที่สุด',unavailable,'ต้องใช้ฝนตรวจวัดรายจังหวัดช่วงเวลาเดียวกัน · ภาพเรดาร์ไม่ใช่ค่าฝน มม.'),
+  v22Card('🚩','พื้นที่เสี่ยงน้ำท่วมสูงสุด',unavailable,'ต้องใช้ประกาศเตือนภัยหรือระดับน้ำเทียบตลิ่งที่ยืนยันเกณฑ์'),
+  v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด','กำลังโหลดสถานี...','ThaiWater · ระดับน้ำเทียบระดับน้ำทะเลปานกลาง (MSL)'),
+  v22Card('🌅','จุดน้ำทะเลหนุนสูงสุด',unavailable,'ยังไม่มีข้อมูลสถานีน้ำทะเลที่มีจุดอ้างอิงและเวลาเปรียบเทียบกันได้'),
+  v22Card('💨','ลมและคลื่นแรงที่สุด',unavailable,'ยังไม่มีข้อมูลตรวจวัดลมและคลื่นทั่วประเทศที่เปรียบเทียบกันได้')
+ ];
+ const header=`<div class="v22intro"><b>📍 สถานการณ์สำคัญทั่วประเทศ</b><small>อันดับจากข้อมูลที่ตรวจสอบได้เท่านั้น · ไม่ใช้ค่าพยากรณ์แทนการตรวจวัด</small></div>`;
+ const draw=()=>{if(request!==v22OverviewRequest||openKey!=='แผนที่รวม')return;body.innerHTML=header+cards.join('')+`<div class="v22footer">🔄 <button type="button" id="v22Refresh">อัปเดตข้อมูล</button><div id="v22Status">ข้อมูลแสดงตามเวลาตรวจวัดของแต่ละแหล่ง · รายการที่ไม่มีข้อมูลจะแสดงตามจริง</div></div>`;document.getElementById('v22Refresh').onclick=()=>v22GoHome();body.querySelectorAll('[data-v22lat]').forEach(b=>b.onclick=()=>{const lat=Number(b.dataset.v22lat),lon=Number(b.dataset.v22lon);if(Number.isFinite(lat)&&Number.isFinite(lon)){map.setView([lat,lon],10);L.popup().setLatLng([lat,lon]).setContent(v19Escape(b.dataset.v22name||'สถานีระดับน้ำ')).openOn(map);}});};
+ draw();
+ try{
+  const r=await fetch('/api/water/stations',{cache:'no-store'}),j=await r.json();
+  if(!r.ok||!j.ok||!Array.isArray(j.stations))throw Error(j.error||'ไม่มีข้อมูลสถานี');
+  const stations=j.stations.filter(s=>Number.isFinite(Number(s.levelMsl))&&s.levelMsl!==null&&s.levelMsl!==''&&s.observedAt);
+  const newest=stations.reduce((m,s)=>Math.max(m,Date.parse(s.observedAt)||0),0);
+  const current=stations.filter(s=>newest-(Date.parse(s.observedAt)||0)<=24*3600*1000);
+  const top=current.sort((a,b)=>Number(b.levelMsl)-Number(a.levelMsl))[0];
+  if(top){const lat=Number(top.lat),lon=Number(top.lon);const go=Number.isFinite(lat)&&Number.isFinite(lon)&&top.lat!==null&&top.lon!==null?`<button class="v22loc" data-v22lat="${lat}" data-v22lon="${lon}" data-v22name="${v19Escape(top.name)}">📍 ดูตำแหน่งบนแผนที่</button>`:'';
+   cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด',Number(top.levelMsl).toFixed(2)+' เมตร',`${top.name} · ${top.province||'ไม่ระบุจังหวัด'} · ${top.river||top.basin||'ไม่ระบุแม่น้ำ'} · เวลา ${top.observedAt} · สูงสุดตามค่าระดับ MSL (ไม่ใช่อันดับเสี่ยงน้ำท่วม)`,go);
+  }else cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด',unavailable,'ไม่พบสถานีที่มีเวลาและระดับน้ำตรวจวัดภายใน 24 ชั่วโมงของข้อมูลล่าสุด');
+ }catch(e){cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด','ไม่สามารถโหลดข้อมูล','ThaiWater: '+String(e.message));}
+ draw();
+}
 let openKey='';
 window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loadRainV19();else if(openKey==='เรดาร์สภาพอากาศ')loadRadarWeather();};
 function show(key){
@@ -518,8 +565,8 @@ async function loadWater(){
  }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
-document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);v21EnableRadar(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();});
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);v21EnableRadar(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
+document.getElementById('closeModule').addEventListener('click',v22GoHome);
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){v22GoHome();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 })();
 </script>
