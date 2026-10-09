@@ -35,6 +35,9 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 #modulePanel{position:absolute;z-index:950;top:12px;right:12px;left:auto;width:min(480px,calc(100% - 24px));max-height:calc(100% - 106px);overflow:auto;background:#071b2bf7;border:1px solid #2c7197;border-radius:17px;padding:18px;box-shadow:0 12px 38px #0009;display:none}
 #modulePanel .moduleStat{padding:13px;background:#0d3048;border:1px solid #235777;border-radius:12px;margin:10px 0}#modulePanel .moduleStat strong{display:block;font-size:23px;color:#57d5ff}#modulePanel .moduleStat small{color:#a6c5d8}#modulePanel .moduleGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#modulePanel .moduleNote{padding:12px;border-radius:10px;background:#123249;color:#b9d8eb;line-height:1.8;font-size:12px}#modulePanel h2{font-size:18px;margin:0 0 9px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.7;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
 @media(max-width:820px){#modulePanel{left:8px;right:8px;width:auto;top:60px;max-height:calc(100% - 150px)}}
+
+/* V8: flags indicate rainfall-model screening only, not an official flood warning */
+.flagLegend{display:grid;gap:7px;margin:12px 0}.flagRow{display:flex;align-items:center;gap:10px;padding:9px;border:1px solid #21415a;border-radius:10px;background:#0a263b}.flagIcon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;height:38px;border-radius:9px;color:#fff;font-size:22px}.flagRow b{display:block;font-size:12px}.flagRow small{display:block;font-size:10px;color:#b9cfdf}.flagPoint{border-left:5px solid var(--flag-color);padding:11px;background:#0b2b43;border-radius:9px;margin:8px 0}.flagPoint b{font-size:12px}.flagPoint small{display:block;color:#aec7d7;font-size:10px}.flagPoint button{margin-top:7px;font-size:11px}
 </style>
 </head>
 <body>
@@ -213,7 +216,7 @@ function show(key){
  openKey=key;title.textContent=headings[key]||key;panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
- else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadRainSamples(key);
+ else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadFloodFlags();
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
  else if(key==='เรดาร์สภาพอากาศ')loadRainSamples(key);
  else if(key==='CCTV')body.innerHTML=pending('ภาพสดจากกล้องสาธารณะที่อนุญาตให้เผยแพร่');
@@ -233,6 +236,44 @@ async function loadWeather(key){
  if(key==='ลมและคลื่นทะเล')body.innerHTML=location+grid([stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที'),stat('ทิศทางลม',fmt(d.wd10m,0),'องศา')])+pending('ความสูงคลื่นและคาบคลื่น');
  if(key==='รายงานสถานการณ์')body.innerHTML=location+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ลม',fmt(d.ws10m),'ม./วินาที')])+note('สรุปนี้เป็นข้อมูลแบบจำลอง TMD ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ');
  }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลได้: '+String(e.message).replaceAll('<','&lt;'));}
+}
+// Five presentation colors are a *provisional rainfall-screening scale* for the TMD hourly model.
+// They MUST NOT be presented as confirmed flood risk or an official warning.
+const flagLevels=[
+ {name:'เขียว',status:'ฝนต่ำ / เฝ้าดูตามปกติ',min:0,max:1,color:'#159b61',symbol:'🟢'},
+ {name:'เหลือง',status:'เริ่มติดตามฝน',min:1,max:10,color:'#d4a017',symbol:'🟡'},
+ {name:'ส้ม',status:'เฝ้าระวังฝนเพิ่มขึ้น',min:10,max:20,color:'#e57a20',symbol:'🟠'},
+ {name:'แดง',status:'ฝนพยากรณ์หนัก',min:20,max:35,color:'#db4040',symbol:'🔴'},
+ {name:'ม่วง',status:'ฝนพยากรณ์หนักมาก',min:35,max:Infinity,color:'#8b54d4',symbol:'🟣'}
+];
+function flagForRain(rain){return flagLevels.find(l=>rain>=l.min&&rain<l.max)||null;}
+const floodFlagLayer=L.layerGroup().addTo(map);
+function flagLegendHtml(){return '<div class="flagLegend">'+flagLevels.map(l=>`<div class="flagRow"><span class="flagIcon" style="background:${l.color}">⚑</span><div><b>ธง${l.name} — ${l.status}</b><small>${l.max===Infinity?'ตั้งแต่ '+l.min+' มม./ชั่วโมง':l.min+' ถึงน้อยกว่า '+l.max+' มม./ชั่วโมง'}</small></div></div>`).join('')+'</div>';}
+async function loadFloodFlags(){
+ body.innerHTML=note('กำลังประเมินระดับฝนพยากรณ์จากจุดตัวอย่าง TMD...');
+ floodFlagLayer.clearLayers();
+ try{
+  const j=await getJSON('/api/tmd/rain-map');
+  if(openKey!=='พื้นที่เสี่ยงน้ำท่วม')return;
+  const rows=(j.points||[]).filter(p=>Array.isArray(p.forecasts)&&p.forecasts.length).map(p=>{
+   const f=currentForecast(p.forecasts),raw=f?.data?.rain;
+   const rain=raw===null||raw===undefined||raw===''?NaN:Number(raw);
+   return {lat:Number(p.lat),lon:Number(p.lon),rain,time:f?.time};
+  }).filter(p=>Number.isFinite(p.rain)&&p.rain>=0&&Number.isFinite(p.lat)&&Number.isFinite(p.lon)).sort((a,b)=>b.rain-a.rain);
+  const counts=flagLevels.map(l=>rows.filter(p=>flagForRain(p.rain)===l).length);
+  body.innerHTML=note('<b>สัญลักษณ์ธงสีเฝ้าระวังฝน (เกณฑ์ทดลอง)</b> — แสดงตามปริมาณฝนพยากรณ์รายชั่วโมงจากแบบจำลอง TMD เท่านั้น <b>ไม่ใช่ระดับความเสี่ยงน้ำท่วมจริง ไม่ใช่ประกาศเตือนภัย และธงเขียวไม่ได้รับรองว่าพื้นที่ปลอดภัยจากน้ำท่วม</b> การประเมินน้ำท่วมต้องพิจารณาระดับน้ำ พื้นที่ลุ่ม และประกาศหน่วยงานร่วมด้วย')+
+   flagLegendHtml()+grid([stat('จุดตัวอย่างที่มีข้อมูล',rows.length,'จุด'),stat('จุดธงแดงและม่วง',counts[3]+counts[4],'จุดพยากรณ์')])+
+   '<h3 style="margin:14px 0 8px">จุดพยากรณ์ที่ควรติดตาม</h3>'+
+   (rows.slice(0,20).map((p,i)=>{const l=flagForRain(p.rain);return `<div class="flagPoint" style="--flag-color:${l.color}"><b>${l.symbol} ธง${l.name} · ${fmt(p.rain)} มม./ชั่วโมง</b><small>พิกัด ${fmt(p.lat,3)}, ${fmt(p.lon,3)} · ${safeTime(p.time)}</small><button type="button" data-flag-index="${i}">ดูจุดบนแผนที่</button></div>`;}).join('')||note('ไม่พบข้อมูลพยากรณ์ที่ใช้ได้'))+
+   note('ข้อมูลนี้เป็นจุดตัวอย่างจำนวนจำกัด ไม่ครอบคลุมทุกตำบล และไม่ใช่สถานการณ์ฝนที่ตรวจวัดจริง • จุดสีเทาหมายถึงยังไม่มีข้อมูล (ไม่ตีความว่าปลอดภัย)');
+  body.querySelectorAll('[data-flag-index]').forEach(btn=>btn.addEventListener('click',()=>{
+   const p=rows[Number(btn.dataset.flagIndex)];if(!p)return;
+   map.setView([p.lat,p.lon],9);loadLocation(p.lat,p.lon);
+  }));
+  rows.forEach(p=>{const l=flagForRain(p.rain);const m=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:`<div style="width:30px;height:30px;border-radius:8px;background:${l.color};border:2px solid white;display:grid;place-items:center;color:white;font-size:20px;box-shadow:0 2px 8px #000a">⚑</div>`,iconSize:[30,30],iconAnchor:[15,15]})});
+   m.bindPopup(`<b>ธง${l.name} — เกณฑ์ฝนพยากรณ์ทดลอง</b><br>${fmt(p.rain)} มม./ชั่วโมง<br>${safeTime(p.time)}<br><small>ไม่ใช่ประกาศเตือนภัยน้ำท่วม</small>`);m.addTo(floodFlagLayer);
+  });
+ }catch(e){if(openKey==='พื้นที่เสี่ยงน้ำท่วม')body.innerHTML=note('โหลดข้อมูลไม่ได้: '+escapeWater(e.message));}
 }
 async function loadRainSamples(key){
  body.innerHTML=note('กำลังโหลดข้อมูลฝนพยากรณ์ตามจุดตัวอย่างทั่วประเทศไทยจาก TMD...');
@@ -279,8 +320,8 @@ async function loadWater(){
  }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
-document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';openKey='';});
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';openKey='';return;}show(keys[i]);}));
+document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';openKey='';floodFlagLayer.clearLayers();});
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 })();
 </script>
