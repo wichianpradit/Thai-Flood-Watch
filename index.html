@@ -273,5 +273,33 @@ loadMap();
 setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000);
 
 </script>
+
+<style>
+#modulePanel{position:absolute;z-index:850;top:18px;left:18px;width:min(460px,calc(100% - 36px));max-height:calc(100% - 115px);overflow:auto;background:#071b2bf5;border:1px solid #2c7197;border-radius:17px;padding:18px;box-shadow:0 12px 38px #0009;display:none}
+#modulePanel h2{font-size:18px;margin:0 0 9px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.7;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
+</style>
+<div id="modulePanel" role="dialog" aria-label="ข้อมูลระบบ" aria-modal="false"><button id="closeModule" style="float:right">✕ ปิด</button><h2 id="moduleTitle"></h2><div id="moduleBody"></div></div>
+<script>
+(function(){
+const panel=document.getElementById('modulePanel'), title=document.getElementById('moduleTitle'),body=document.getElementById('moduleBody');
+document.getElementById('closeModule').onclick=()=>panel.style.display='none';
+const link=(url,label)=>`<p><a href="${url}" target="_blank" rel="noopener noreferrer">↗ ${label}</a></p>`;
+const info={
+'ฝนปัจจุบัน':['🌧️ ฝนปัจจุบัน','ข้อมูลบนแผนที่เป็น <b>พยากรณ์รายชั่วโมง</b> จาก TMD ไม่ใช่ปริมาณฝนที่วัดได้จริง เรดาร์ฝนสดเปิดจากหน้าแหล่งข้อมูลทางการด้านล่าง',link('https://weather.tmd.go.th/composite/index_composite.html','เปิดเรดาร์ฝนคอมโพสิท กรมอุตุนิยมวิทยา')],
+'พื้นที่เสี่ยงน้ำท่วม':['⚠️ พื้นที่เสี่ยงน้ำท่วม','ยังไม่มีข้อมูลขอบเขตพื้นที่เสี่ยงและเกณฑ์เตือนภัยที่ตรวจสอบแล้ว จึงไม่แสดงสีเตือนภัยบนแผนที่โดยอัตโนมัติ',link('https://www.thaiwater.net/','ตรวจสอบสถานการณ์น้ำจาก ThaiWater')],
+'ระดับน้ำในแม่น้ำ':['🌿 ระดับน้ำในแม่น้ำ','กำลังเรียกข้อมูลสถานีวัดระดับน้ำจากแหล่งข้อมูลสาธารณะ หากต้นทางไม่ตอบสนองจะมีข้อความแจ้ง ไม่แสดงค่าที่แต่งขึ้น','<div id="waterResults" class="item">กำลังตรวจสอบข้อมูล...</div>'+link('https://www.thaiwater.net/','เปิดสถานีวัดน้ำ ThaiWater')],
+'น้ำทะเลหนุน':['🌊 น้ำทะเลหนุน','ยังไม่มีการเชื่อมข้อมูลสถานีวัดระดับน้ำทะเลและค่าทำนายรายชั่วโมงที่ตรวจสอบได้ จึงยังไม่สามารถแสดงระดับน้ำทะเลหนุนเป็นตัวเลขจริง',link('https://www.hydro.navy.mi.th/','ตรวจสอบข้อมูลกรมอุทกศาสตร์ กองทัพเรือ')],
+'เรดาร์สภาพอากาศ':['📡 เรดาร์สภาพอากาศ','ภาพเรดาร์จริงมีอยู่ที่เว็บไซต์กรมอุตุนิยมวิทยา ลิงก์นี้เปิดภาพต้นทาง ไม่ใช่ชั้นข้อมูลเรดาร์ที่ฝังบนแผนที่',link('https://weather.tmd.go.th/composite/index_composite.html','ดูเรดาร์คอมโพสิททั่วประเทศ')],
+'ลมและคลื่นทะเล':['〰️ ลมและคลื่นทะเล','ความเร็วและทิศทางลมจาก TMD แสดงได้แล้วเมื่อเลือกจุดพยากรณ์ ส่วนความสูงคลื่นและคาบคลื่นยังไม่มี API ที่เชื่อมสำเร็จ จึงไม่สร้างค่าจำลอง',link('https://www.tmd.go.th/','ตรวจสอบพยากรณ์ทางทะเล TMD')],
+'CCTV':['📹 CCTV ทั่วประเทศ','กล้องที่แสดงบนหน้าแรกยังเป็นภาพตัวอย่าง ไม่ใช่สตรีมสด ต้องเชื่อม URL สาธารณะของแต่ละหน่วยงานและตรวจสิทธิการเผยแพร่ก่อน','<p class="muted">สถานะ: รอแหล่งสตรีม CCTV ที่ได้รับอนุญาต</p>'],
+'จุดช่วยเหลือ':['📍 จุดช่วยเหลือ','ยังไม่มีฐานข้อมูลพิกัดศูนย์พักพิงที่ผ่านการตรวจสอบ กรุณาใช้ช่องทางหน่วยงานรับผิดชอบในพื้นที่ ไม่ใช้หมุดตัวอย่างเป็นจุดช่วยเหลือ','<p class="muted">สถานะ: รอฐานข้อมูลพิกัดที่ตรวจสอบแล้ว</p>'],
+'รายงานสถานการณ์':['📋 รายงานสถานการณ์','แผนที่และข้อมูลพยากรณ์อากาศใช้ประกอบการวางแผนได้ แต่ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ',link('https://www.tmd.go.th/','ประกาศกรมอุตุนิยมวิทยา')+link('https://www.thaiwater.net/','ข้อมูลสถานการณ์น้ำ ThaiWater')]
+};
+function openModule(key){const item=info[key];if(!item)return;title.textContent=item[0];body.innerHTML=`<p>${item[1]}</p>${item[2]||''}`;panel.style.display='block';if(key==='ระดับน้ำในแม่น้ำ')loadWater();}
+async function loadWater(){const target=document.getElementById('waterResults');if(!target)return;try{const r=await fetch('/api/water/stations',{cache:'no-store'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'เชื่อมต่อไม่ได้');const count=Array.isArray(j.data)?j.data.length:(Array.isArray(j.data?.data)?j.data.data.length:null);target.textContent='ต้นทางตอบกลับสำเร็จ'+(count!==null?' • รายการข้อมูล '+count:'')+' รายการ (ยังต้องตรวจสอบโครงสร้างและหน่วยก่อนแสดงระดับน้ำรายสถานี)';}catch(e){target.textContent='ยังดึงข้อมูลไม่ได้: '+e.message;}}
+const nav=document.querySelectorAll('.nav');nav.forEach((n,i)=>{n.addEventListener('click',()=>{if(i===0){panel.style.display='none';return;}const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];openModule(keys[i]);});});
+const tabs=document.querySelectorAll('.map-tabs button');tabs.forEach((t,i)=>{if([0,1,2,4].includes(i))t.addEventListener('click',()=>{if(i===0)openModule('เรดาร์สภาพอากาศ');if(i===1)openModule('ฝนปัจจุบัน');if(i===2)openModule('เรดาร์สภาพอากาศ');if(i===4)openModule('ลมและคลื่นทะเล');});});
+})();
+</script>
 </body>
 </html>
