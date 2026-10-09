@@ -34,7 +34,7 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 /* V9: the module is part of the right-side dashboard, never a floating overlay */
 .rightbar{display:flex;flex-direction:column;overflow:hidden;gap:10px}
 .rightbar>.card{margin-bottom:0;flex-shrink:0}
-.rightbar>.card:nth-child(2){flex:1;min-height:110px;display:flex;flex-direction:column;overflow:hidden}
+.rightbar>.card:first-child{flex:1;min-height:110px;display:flex;flex-direction:column;overflow:hidden}
 #dashboardOverview{overflow:auto;min-height:0;height:100%}
 #modulePanel{position:relative;inset:auto;z-index:auto;width:100%;max-height:none;min-height:0;flex:1;overflow:auto;background:transparent;border:0;border-radius:0;padding:14px;box-shadow:none;display:none}
 #modulePanel .moduleStat{padding:13px;background:#0d3048;border:1px solid #235777;border-radius:12px;margin:10px 0}#modulePanel .moduleStat strong{display:block;font-size:23px;color:#57d5ff}#modulePanel .moduleStat small{color:#a6c5d8}#modulePanel .moduleGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#modulePanel .moduleNote{padding:12px;border-radius:10px;background:#123249;color:#b9d8eb;line-height:1.8;font-size:12px}#modulePanel h2{font-size:18px;margin:0 0 9px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.7;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
@@ -43,7 +43,7 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 #modulePanel #closeModule{float:none!important;white-space:nowrap}
 #cctvPermanent{max-height:185px;overflow:auto}
 @media(max-width:820px){.rightbar{display:flex;width:min(370px,70%);padding:7px}.maparea{right:min(370px,70%)}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#cctvPermanent{max-height:160px}.cctv{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:5px}.cam{height:100px}.cam .ct{font-size:7px}.cam .ct b{font-size:8px}#modulePanel{padding:8px}#modulePanel .moduleGrid{grid-template-columns:1fr}}
-@media(max-width:540px){.rightbar{width:75%;}.maparea{right:75%}.rightbar>.card:first-child{display:none}.cctv{grid-template-columns:repeat(3,minmax(0,1fr))}.cam .ct{font-size:6px}}
+@media(max-width:540px){.rightbar{width:75%;}.maparea{right:75%}.rightbar>.card:first-child{display:flex}.cctv{grid-template-columns:repeat(3,minmax(0,1fr))}.cam .ct{font-size:6px}}
 /* V8: flags indicate rainfall-model screening only, not an official flood warning */
 .flagLegend{display:grid;gap:7px;margin:12px 0}.flagRow{display:flex;align-items:center;gap:10px;padding:9px;border:1px solid #21415a;border-radius:10px;background:#0a263b}.flagIcon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;height:38px;border-radius:9px;color:#fff;font-size:22px}.flagRow b{display:block;font-size:12px}.flagRow small{display:block;font-size:10px;color:#b9cfdf}.flagPoint{border-left:5px solid var(--flag-color);padding:11px;background:#0b2b43;border-radius:9px;margin:8px 0}.flagPoint b{font-size:12px}.flagPoint small{display:block;color:#aec7d7;font-size:10px}.flagPoint button{margin-top:7px;font-size:11px}
 
@@ -53,6 +53,21 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 .cctvScreen{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;text-align:center;background:#04111e;color:#9fb5c5;font-size:9px;padding:3px;overflow:hidden}
 .cctvLabel{padding:5px;font-size:9px;color:#c9e2f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cctvInfo{font-size:10px;color:#a9bdce;padding:7px 10px 0}
+
+/* V15: compact national summary relocated between search and weather */
+header{grid-template-columns:minmax(245px,410px) minmax(150px,1fr) minmax(280px,365px) auto;gap:12px;padding-inline:14px}
+.national-summary{min-width:0;height:56px;border:1px solid #245176;border-radius:12px;background:linear-gradient(135deg,#0a2740,#0a1d30);padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.national-summary-title{display:flex;justify-content:space-between;align-items:center;gap:6px;min-width:0}
+.national-summary-title strong{font-size:11px;white-space:nowrap}
+.national-summary-title small{font-size:8px;color:#a8bdce;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.national-summary-values{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.summary-value{display:flex;justify-content:center;align-items:center;gap:4px;background:#123550;border:1px solid #214765;border-radius:6px;padding:3px 2px;min-width:0;white-space:nowrap}
+.summary-value span{font-size:9px;color:#a9cce2}.summary-value b{font-size:11px;color:#57d8ff;overflow:hidden;text-overflow:ellipsis}
+.rightbar>.card:first-child{flex:1;min-height:110px;display:flex;flex-direction:column;overflow:hidden}
+@media(max-width:1450px){header{grid-template-columns:minmax(190px,290px) minmax(130px,1fr) minmax(255px,300px) auto;gap:8px}.headstats{gap:5px}.hbox{min-width:100px;padding:6px 8px}.round{width:36px;height:36px}.national-summary-title small{max-width:130px}}
+@media(max-width:1100px){header{grid-template-columns:minmax(165px,220px) minmax(110px,1fr) minmax(220px,260px) auto;gap:6px;padding:7px}.brand h1{font-size:18px}.brand p{font-size:9px}.headstats .round{display:none}.national-summary-title small{display:none}.summary-value span{font-size:8px}.summary-value b{font-size:10px}}
+@media(max-width:820px){header{grid-template-columns:minmax(125px,1fr) minmax(190px,1.2fr);gap:8px}.national-summary{height:52px}.national-summary-title strong{font-size:10px}.national-summary-values{gap:2px}.summary-value{gap:2px}.summary-value span{font-size:7px}.summary-value b{font-size:9px}}
+@media(max-width:540px){header{grid-template-columns:minmax(105px,.8fr) minmax(190px,1.4fr)}.brand-logo{width:34px;height:34px;font-size:20px}.brand h1{font-size:14px}.national-summary{padding:4px}.national-summary-title strong{font-size:9px}}
 </style>
 </head>
 <body>
@@ -60,6 +75,15 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 <header>
  <div class="brand"><div class="brand-logo">💧</div><div><h1>Thai Flood Watch</h1><p>แผนที่พยากรณ์อากาศจาก TMD (ไม่ใช่เรดาร์ฝนสด)</p></div></div>
  <div class="search">⌕ <input placeholder="ค้นหาจังหวัด / อำเภอ / สถานที่..."><span>⚙</span></div>
+ <div class="national-summary" aria-label="สถานการณ์ประเทศไทย ข้อมูลพยากรณ์จุดที่เลือก">
+  <div class="national-summary-title"><strong>📊 สถานการณ์ประเทศไทย</strong><small>ข้อมูลจุดที่เลือก · <span id="updated">--</span></small></div>
+  <div class="national-summary-values">
+   <div class="summary-value" title="ฝนพยากรณ์จุดที่เลือก หน่วยมิลลิเมตร"><span>🌧️ ฝน</span><b id="rainNow">--</b></div>
+   <div class="summary-value" title="ความชื้นสัมพัทธ์ หน่วยเปอร์เซ็นต์"><span>💧 ชื้น</span><b id="humidityNow">--</b></div>
+   <div class="summary-value" title="ความเร็วลม หน่วยเมตรต่อวินาที"><span>💨 ลม</span><b id="windNow">--</b></div>
+   <div class="summary-value" title="ทิศทางลม หน่วยองศา"><span>🧭 ทิศ</span><b id="directionNow">--</b></div>
+  </div>
+ </div>
  <div class="headstats">
   <div class="hbox"><b>☁️ <span id="temp">--°C</span></b><small>สภาพอากาศ</small></div>
   <div class="hbox"><b id="date">--</b><small><span id="clock">--:--</span> น. &nbsp; 🔴 LIVE</small></div>
@@ -87,15 +111,6 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
   </div>
  </div>
  <section class="rightbar">
-  <div class="card">
-   <div class="card-head"><div><h3>📊 สถานการณ์ประเทศไทย</h3><small>อัปเดตล่าสุด <span id="updated">--</span></small></div><button class="more">ดูทั้งหมด →</button></div>
-   <div class="metrics">
-    <div class="metric"><div class="micon">🌧️</div><b class="cyan" id="rainNow">--</b><small>ฝนพยากรณ์จุดที่เลือก (มม.)</small></div>
-    <div class="metric"><div class="micon">💧</div><b class="orange" id="humidityNow">--</b><small>ความชื้น (%)</small></div>
-    <div class="metric"><div class="micon">💨</div><b class="cyan" id="windNow">--</b><small>ความเร็วลม (ม./วินาที)</small></div>
-    <div class="metric"><div class="micon">🧭</div><b class="green" id="directionNow">--</b><small>ทิศลม (องศา)</small></div>
-   </div>
-  </div>
   <div class="card" id="dataViewCard">
    <div id="dashboardOverview">
    <div class="tabs"><button class="active">แจ้งเตือนล่าสุด</button><button>ระดับน้ำ</button><button>น้ำทะเลหนุน</button><button>ข่าวสาร</button></div>
