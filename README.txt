@@ -1,3 +1,1 @@
-Thai Flood Watch V8 - Flag indicators
-Replace index.html with the supplied file. server.js is unchanged from V7.
-Flags are illustrative hourly TMD forecast rainfall categories, NOT official flood risk warnings.
+Thai Flood Watch V9: replace index.html only. server.js unchanged from V8. Right-hand dashboard changes by left navigation; CCTV remains visible below.
