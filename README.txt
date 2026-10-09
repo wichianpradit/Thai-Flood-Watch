@@ -1,4 +1,4 @@
-Thai Flood Watch V19
-Replace index.html and server.js; retain cctv.html.
-Rain observations and radar are not connected; no fake live rainfall is shown.
-7-day model forecast: Open-Meteo. Hourly model: TMD.
+Thai Flood Watch V20 — แสดงหน้าเรดาร์ TMD ภายในแผงข้อมูลด้านขวา
+อัปโหลด index.html แทนที่ของ V19; server.js และ cctv.html คงเดิมได้
+ข้อจำกัด: TMD อาจป้องกัน iframe; หากภาพไม่แสดงต้องใช้ภาพ/API ที่ได้รับอนุญาตจากต้นทาง ไม่สามารถรับประกันการฝังได้
+ภาพเรดาร์ไม่ใช่ API อ่านค่าฝนรายพิกัด; คงกล้องและเมนูเดิม

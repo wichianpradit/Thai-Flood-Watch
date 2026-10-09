@@ -343,12 +343,20 @@ let rainV19Mode='observed';
 const v19Escape=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function v19Card(icon,label,value,unit='',kind='') {return `<div class="v19-weather-card"><div class="emoji">${icon}</div><div class="label">${label}</div><div class="value">${v19Escape(value??'--')}</div><div class="unit">${v19Escape(unit)} ${kind?('· '+v19Escape(kind)):''}</div></div>`;}
 function v19Buttons(selected){return `<div class="v19-actions"><button type="button" data-v19="observed" class="${selected==='observed'?'selected':''}">🌧️ ฝนปัจจุบัน</button><button type="button" data-v19="forecast-hourly" class="${selected==='forecast-hourly'?'selected':''}">⏱️ รายชั่วโมง</button><button type="button" data-v19="seven" class="${selected==='seven'?'selected':''}">📅 พยากรณ์ 7 วัน</button></div>`;}
+function v20RadarEmbed(){
+ return `<section class="v20-radar" style="margin:12px 0;padding:12px;background:#101f35;border:1px solid #2d4866;border-radius:14px">
+ <div style="font-weight:700;margin-bottom:8px">📡 เรดาร์คอมโพสิทกรมอุตุนิยมวิทยา (TMD)</div>
+ <div style="font-size:12px;color:#b6cee1;margin-bottom:8px">แสดงหน้าเรดาร์ต้นทางภายในช่องนี้ · เวลาและความเข้มฝนให้อ้างอิงตามที่ TMD แสดง · ไม่ใช่ค่าฝนรายพิกัดจาก API</div>
+ <iframe title="เรดาร์คอมโพสิท TMD" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://weather.tmd.go.th/composite/index_composite.html" style="width:100%;height:430px;border:0;border-radius:9px;background:#17263a"></iframe>
+ <div style="font-size:12px;color:#b6cee1;margin-top:8px">หากภาพว่าง แสดงว่าเว็บต้นทางอาจไม่อนุญาตให้ฝังหน้าเว็บ หรือการเชื่อมต่อล้มเหลว <a href="https://weather.tmd.go.th/composite/index_composite.html" target="_blank" rel="noopener noreferrer" style="color:#8bdcff">ตรวจสอบภาพที่ต้นทาง</a></div>
+ </section>`;
+}
 function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;loadRainV19();}));}
 async function loadRainV19(){
  if(openKey!=='ฝนปัจจุบัน')return;
  body.innerHTML=v19Buttons(rainV19Mode)+note('กำลังเตรียมข้อมูล...');v19WireButtons();
  if(rainV19Mode==='observed'){
-   body.innerHTML=v19Buttons('observed')+'<div class="v19-warning">📡 ยังไม่ได้เชื่อมข้อมูลเรดาร์หรือสถานีฝนตรวจวัดจริงสำหรับพิกัดนี้ จึงไม่สามารถยืนยันว่าฝนกำลังตกหรือไม่ตกได้ และจะไม่ใช้ค่าพยากรณ์แทนค่าปัจจุบัน</div>'+grid([v19Card('🌧️','ฝนตรวจวัด','ไม่มีข้อมูล','มม.','ตรวจวัดจริง'),v19Card('📡','เรดาร์สด','ยังไม่เชื่อม','','ตรวจวัดจริง'),v19Card('🕒','เวลาตรวจวัด','--','','')])+note('เมื่อเชื่อมเรดาร์หรือสถานีตรวจวัดจริงแล้ว ข้อมูลจะปรากฏในส่วนนี้ แผนที่สีเดิมเป็นเพียงพยากรณ์ ไม่ใช่เรดาร์สด');v19WireButtons();return;
+   body.innerHTML=v19Buttons('observed')+v20RadarEmbed()+grid([v19Card('🌧️','ฝนตรวจวัดรายจุด','ไม่มีข้อมูล','มม.','ต้องมี API สถานี'),v19Card('📡','ภาพเรดาร์','จากหน้า TMD','','ตรวจสอบเวลาในภาพ'),v19Card('🕒','เวลาตรวจวัด','ดูในเรดาร์','','ต้นทาง')])+note('ภาพเรดาร์เป็นข้อมูลจากหน้า TMD; ยังไม่มี API เชิงพิกัดสำหรับแปลงสีเรดาร์เป็นค่าฝนบนแผนที่ Leaflet');v19WireButtons();return;
  }
  if(rainV19Mode==='forecast-hourly'){
    body.innerHTML=v19Buttons('forecast-hourly')+note('กำลังโหลดพยากรณ์รายชั่วโมงจาก TMD...');v19WireButtons();
@@ -357,7 +365,7 @@ async function loadRainV19(){
  try{const j=await getJSON(`/api/weather/7day?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='ฝนปัจจุบัน'||rainV19Mode!=='seven')return;const d=j.daily||{}, dates=d.time||[];body.innerHTML=v19Buttons('seven')+note('📅 พยากรณ์ล่วงหน้า 7 วัน · Open-Meteo (ข้อมูลแบบจำลอง ไม่ใช่ค่าตรวจวัด) · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+'<div class="v19-seven">'+dates.map((day,i)=>`<div class="v19-day"><strong>📅 ${v19Escape(day)}</strong><div>🌧️ ฝนรวม ${v19Escape(d.precipitation_sum?.[i]??'--')} มม.</div><div>☔ โอกาสฝน ${v19Escape(d.precipitation_probability_max?.[i]??'--')}%</div><div>🌡️ ${v19Escape(d.temperature_2m_min?.[i]??'--')}–${v19Escape(d.temperature_2m_max?.[i]??'--')} °C</div><div>💨 ลมสูงสุด ${v19Escape(d.wind_speed_10m_max?.[i]??'--')} กม./ชม.</div></div>`).join('')+'</div>'+note('แหล่งข้อมูล: Open-Meteo · พยากรณ์อาจเปลี่ยนแปลงได้');v19WireButtons();}catch(e){body.innerHTML=v19Buttons('seven')+note('โหลดพยากรณ์ 7 วันไม่ได้: '+v19Escape(e.message));v19WireButtons();}
 }
 async function loadRadarWeather(){
- body.innerHTML=note('📡 เรดาร์สภาพอากาศ · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+'<div class="v19-weather-grid">'+[
+ body.innerHTML=note('📡 เรดาร์สภาพอากาศ · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+v20RadarEmbed()+'<div class="v19-weather-grid">'+[
  v19Card('📡','เรดาร์ฝน','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('🌧️','ฝนตรวจวัด','ไม่มีข้อมูล','มม.','ยังไม่เชื่อม'),v19Card('🌡️','อุณหภูมิ','--','°C','พยากรณ์'),v19Card('💧','ความชื้น','--','%','พยากรณ์'),v19Card('💨','ความเร็วลม','--','ม./วินาที','พยากรณ์'),v19Card('🧭','ทิศลม','--','องศา','พยากรณ์'),v19Card('🌊','คลื่น','ไม่มีข้อมูล','ม.','ยังไม่เชื่อม'),v19Card('🔘','ความกดอากาศ','ไม่มีข้อมูล','hPa','ยังไม่เชื่อม'),v19Card('👁️','ทัศนวิสัย','ไม่มีข้อมูล','กม.','ยังไม่เชื่อม'),v19Card('☁️','เมฆ','ไม่มีข้อมูล','%','ยังไม่เชื่อม'),v19Card('⛈️','พายุ','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('☀️','UV','ไม่มีข้อมูล','','ยังไม่เชื่อม')].join('')+'</div>'+note('ค่าที่ไม่มี API ตรวจสอบได้จะแสดงไม่มีข้อมูล ไม่ใช้ข้อมูลจำลอง');
  try{const j=await getJSON(`/api/tmd/weather3hours?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='เรดาร์สภาพอากาศ')return;const f=currentForecast(j.data?.WeatherForecasts?.[0]?.forecasts||[]);if(!f)return;const d=f.data||{};const cards=body.querySelectorAll('.v19-weather-card .value');[[2,d.tc],[3,d.rh],[4,d.ws10m],[5,d.wd10m]].forEach(([i,v])=>{if(v!==null&&v!==undefined&&v!=='')cards[i].textContent=fmt(v)});body.insertAdjacentHTML('beforeend',note('ค่าอุณหภูมิ ความชื้น และลมข้างต้นเป็น <b>พยากรณ์ TMD</b> เวลา '+safeTime(f.time)+' ไม่ใช่ค่าตรวจวัดสด'));}catch(e){body.insertAdjacentHTML('beforeend',note('พยากรณ์ TMD ไม่พร้อม: '+v19Escape(e.message)));}
 }
