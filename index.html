@@ -97,7 +97,7 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
   </div>
   <div class="card" id="cctvPermanent">
    <div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง</h3><button class="more">ดูทั้งหมด →</button></div>
-   <div class="cctv" style="display:block;padding:12px"><div class="moduleNote"><b>📹 ยังไม่มีสตรีม CCTV ที่ยืนยันได้</b><p>ส่วนกล้องยังอยู่ตำแหน่งเดิม แต่จะไม่แสดงภาพจำลองหรือป้าย LIVE จนกว่าจะเชื่อม URL สตรีมจริงที่ได้รับอนุญาต</p><small>แหล่งข้อมูล: ยังไม่เชื่อมต่อ · อัปเดต: ไม่มีข้อมูล</small></div></div>
+   <div id="cctvReal" style="padding:12px">กำลังโหลดรายชื่อกล้องจาก ThaiWater...</div>
   </div>
  </section>
  <div class="bottom">
@@ -202,6 +202,41 @@ setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000)
 
 <script>
 (function(){
+// CCTV directory is public metadata; a listed camera is NOT automatically online.
+const cctvEscape=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+let cameraList=[];
+async function loadCCTV(){
+ const host=document.getElementById('cctvReal');if(!host)return;
+ host.textContent='กำลังตรวจสอบรายการกล้องจาก ThaiWater...';
+ try{
+  const r=await fetch('/api/cctv/cameras');const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'HTTP '+r.status);
+  cameraList=j.cameras||[];
+  if(!cameraList.length){host.textContent='ThaiWater ตอบกลับแล้ว แต่ยังไม่พบลิงก์ภาพ/สตรีมที่ใช้ได้ในข้อมูล API (ไม่แสดงกล้องจำลอง)';return;}
+  host.innerHTML='<div style="font-size:11px;margin-bottom:8px">แหล่งข้อมูล: ThaiWater · รายชื่อ '+cameraList.length+' กล้อง · ยังไม่ยืนยันว่าออนไลน์</div><input id="cameraFilter" placeholder="ค้นหาชื่อกล้องหรือจังหวัด" style="width:100%;padding:8px;border-radius:7px;background:#11293a;color:white;border:1px solid #466"/><div id="cameraResults" style="max-height:240px;overflow:auto;margin-top:7px"></div><div id="cameraPlayer" style="margin-top:8px"></div>';
+  const filter=document.getElementById('cameraFilter');filter.addEventListener('input',renderCameras);renderCameras();
+ }catch(e){host.textContent='ยังไม่สามารถโหลดกล้องจริง: '+e.message;}
+}
+function renderCameras(){
+ const q=(document.getElementById('cameraFilter')?.value||'').trim().toLowerCase();const dest=document.getElementById('cameraResults');if(!dest)return;
+ const selected=cameraList.map((c,i)=>({...c,_index:i})).filter(c=>(c.name+' '+c.province).toLowerCase().includes(q)).slice(0,80);
+ dest.innerHTML=selected.map(c=>'<button type="button" data-camera="'+c._index+'" style="display:block;width:100%;padding:8px;text-align:left;margin:3px 0;border:1px solid #365369;border-radius:7px;background:#142d40;color:#e7f5ff;cursor:pointer">📹 '+cctvEscape(c.name)+' <small>'+cctvEscape(c.province||'ไม่ระบุจังหวัด')+'</small></button>').join('')||'ไม่พบกล้อง';
+ dest.querySelectorAll('[data-camera]').forEach(el=>el.addEventListener('click',()=>playCamera(Number(el.dataset.camera))));
+}
+function playCamera(index){
+ const c=cameraList[index],el=document.getElementById('cameraPlayer');if(!c||!el)return;
+ el.replaceChildren();const title=document.createElement('div');title.textContent=c.name+' — '+(c.province||'ไม่ระบุจังหวัด');el.append(title);
+ const url=c.stream||c.snapshot;
+ if(url){
+  const isHls=/\.m3u8(?:[?#]|$)/i.test(url),isVideo=isHls||/\.(mp4|webm)(?:[?#]|$)/i.test(url);
+  if(isVideo){const v=document.createElement('video');v.controls=true;v.playsInline=true;v.style.width='100%';v.style.maxHeight='250px';el.append(v);
+   if(isHls&&!v.canPlayType('application/vnd.apple.mpegurl')){const msg=document.createElement('div');msg.textContent='เบราว์เซอร์นี้ต้องใช้ตัวเล่น HLS เพิ่มเติมเพื่อดูสตรีมนี้';el.append(msg);}else{v.src=url;v.addEventListener('error',()=>{const msg=document.createElement('div');msg.textContent='ไม่สามารถเล่นสตรีมนี้ได้';el.append(msg);});}}
+  else{const img=document.createElement('img');img.src=url;img.alt='ภาพจาก '+c.name;img.style.cssText='width:100%;max-height:250px;object-fit:contain';img.onerror=()=>{img.replaceWith(document.createTextNode('ไม่สามารถแสดงภาพจากกล้องนี้ได้'));};el.append(img);}
+ }else{const msg=document.createElement('div');msg.textContent='กล้องนี้มีเฉพาะหน้าเว็บต้นทาง ไม่มีลิงก์สตรีมสำหรับฝัง';el.append(msg);}
+ if(c.page){const a=document.createElement('a');a.href=c.page;a.target='_blank';a.rel='noopener noreferrer';a.textContent='หน้าแหล่งข้อมูลกล้อง';el.append(a);}
+ const info=document.createElement('small');info.textContent='ภาพจากแหล่งต้นทาง · ไม่รับประกันว่าเป็นภาพสดจนกว่าสตรีมจะเล่นได้';el.append(info);
+}
+document.addEventListener('DOMContentLoaded',loadCCTV);
+
 const panel=document.getElementById('modulePanel');
 const dashboardOverview=document.getElementById('dashboardOverview');
 const title=document.getElementById('moduleTitle');
@@ -220,7 +255,7 @@ function show(key){
  else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
  else if(key==='เรดาร์สภาพอากาศ')body.innerHTML=pending('ภาพเรดาร์ตรวจวัดจริงจากหน่วยงานต้นทาง');
- else if(key==='CCTV')body.innerHTML=note('ส่วน CCTV อยู่ด้านล่างตลอดเวลา • ยังไม่มี URL กล้องสดที่ตรวจสอบได้ จึงไม่แสดงภาพหรือสถานะ LIVE');
+ else if(key==='CCTV'){body.innerHTML=note('รายชื่อกล้องจริงจาก ThaiWater แสดงในส่วน CCTV ด้านล่าง • กดเลือกกล้องเพื่อดูภาพหากสตรีมรองรับ');loadCCTV();}
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }
 async function loadWeather(key){

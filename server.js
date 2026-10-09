@@ -138,6 +138,45 @@ app.get('/api/water/stations',async(req,res)=>{
 });
 app.get('/api/water/stations/raw',async(req,res)=>{try{res.json({ok:true,source:'ThaiWater public endpoint',raw:true,data:await getWaterRaw()});}catch(e){res.status(502).json({ok:false,error:e.message});}});
 // Describes which integrations are actually configured; never presents missing feeds as live.
+// ThaiWater camera directory. Stream availability is verified by the browser player,
+// not inferred from directory membership. No synthetic camera records are created.
+let cameraCache={at:0,items:[]};
+function flattenCameras(root){
+ const found=[];const seen=new Set();
+ function visit(x,depth){
+  if(depth>9||!x||typeof x!=='object'||seen.has(x))return;
+  seen.add(x);
+  if(Array.isArray(x)){for(const v of x)visit(v,depth+1);return;}
+  const keys=Object.keys(x);
+  const isCamera=keys.some(k=>/cctv|camera|cam_name|stream|video|image_url|snapshot/i.test(k));
+  if(isCamera)found.push(x);
+  for(const [k,v] of Object.entries(x))if(v&&typeof v==='object')visit(v,depth+1);
+ }
+ visit(root,0);return found;
+}
+function field(x,keys){for(const k of keys){const v=x[k];if(typeof v==='string'&&v.trim())return v.trim();if(typeof v==='number')return String(v);if(v&&typeof v==='object'&&typeof v.th==='string')return v.th;}return '';}
+function safeCameraURL(v){try{const u=new URL(v);return u.protocol==='https:'?u.href:null;}catch{return null;}}
+function normalizeCamera(c,i){
+ const name=field(c,['cctv_name','camera_name','cam_name','station_name','name','title','cctv_station_name'])||field(c.station||{},['name','tele_station_name'])||'กล้อง '+(i+1);
+ const province=field(c.geocode||{},['province_name'])||field(c,['province_name','province']);
+ const stream=safeCameraURL(field(c,['stream_url','stream','hls_url','hls','video_url','video','url_stream','rtsp_url','cctv_url']));
+ const snapshot=safeCameraURL(field(c,['image_url','snapshot_url','snapshot','image','picture_url','img_url','url_image']));
+ const page=safeCameraURL(field(c,['page_url','website','web_url','link','url']));
+ const lat=Number(field(c,['latitude','lat','cctv_lat','camera_lat'])||field(c.station||{},['tele_station_lat','lat']));
+ const lon=Number(field(c,['longitude','lon','lng','cctv_long','camera_long'])||field(c.station||{},['tele_station_long','lon']));
+ return {id:String(field(c,['cctv_id','camera_id','id','code'])||i),name,province,stream,snapshot,page,lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null};
+}
+app.get('/api/cctv/cameras',async(req,res)=>{
+ try{
+  if(Date.now()-cameraCache.at<10*60*1000&&cameraCache.at)return res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:cameraCache.items,streamVerified:false});
+  const r=await fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv',{headers:{Accept:'application/json'},signal:AbortSignal.timeout(14000)});
+  if(!r.ok)throw new Error('ThaiWater CCTV HTTP '+r.status);
+  const data=await r.json();const rows=flattenCameras(data);
+  const items=rows.map(normalizeCamera).filter(c=>c.stream||c.snapshot||c.page);
+  cameraCache={at:Date.now(),items};
+  res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:items,streamVerified:false,directoryCount:rows.length});
+ }catch(e){res.status(502).json({ok:false,error:'ไม่สามารถเชื่อมรายการกล้อง ThaiWater: '+e.message});}
+});
 app.get('/api/modules/status',(req,res)=>res.json({ok:true,updatedAt:new Date().toISOString(),modules:{forecast:{available:!!process.env.TMD_TOKEN,source:'TMD forecast, not observed rainfall'},rainMap:{available:!!process.env.TMD_TOKEN,source:'TMD sampled forecast, not radar'},water:{available:true,source:'ThaiWater observed station water levels (MSL); situation codes not interpreted'},floodRisk:{available:false},tide:{available:false},radar:{available:false},waves:{available:false},cctv:{available:false},shelters:{available:false}}}));
 app.get('/',(req,res)=>{const a=path.join(ROOT,'public','index.html'),b=path.join(ROOT,'index.html');const file=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!file)return res.status(404).json({ok:false,error:'index.html not found'});res.sendFile(file);});
 app.listen(PORT,'0.0.0.0',()=>console.log('Thai Flood Watch listening on '+PORT));
