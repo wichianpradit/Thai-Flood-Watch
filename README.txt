@@ -1,3 +1,1 @@
-Thai Flood Watch V22 — National Overview
-Replace index.html in GitHub. server.js and cctv.html are included unchanged for full deployment.
-Overview uses real ThaiWater river station values when available. Other nationwide rankings explicitly say unavailable until verified feeds are connected.
+V22.1 stability patch: overview initialization, cancellable ThaiWater fetch (9 seconds), avoid unnecessary full map redraw on Home, linear maximum calculation. Other files unchanged.

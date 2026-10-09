@@ -399,7 +399,8 @@ function v22Card(icon,heading,main,sub,clickable=''){
  return `<div class="v22card"><div class="v22label">${icon} ${v19Escape(heading)}</div><div class="v22value">${v19Escape(main)}</div><div class="v22detail">${v19Escape(sub)}</div>${clickable}</div>`;
 }
 function v22ResetLayers(){
- if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);
+ // Switching panels must not recompute all map forecast markers.
+ if(typeof window.setRainMapMode==='function' && typeof rainMenuSelected!=='undefined') { rainMenuSelected=false; const legend=document.getElementById('rainForecastLegend'); if(legend)legend.style.display='none'; }
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);
  v21EnableRadar(false);floodFlagLayer.clearLayers();
 }
@@ -426,12 +427,13 @@ async function v22LoadOverview(request){
  const draw=()=>{if(request!==v22OverviewRequest||openKey!=='แผนที่รวม')return;body.innerHTML=header+cards.join('')+`<div class="v22footer">🔄 <button type="button" id="v22Refresh">อัปเดตข้อมูล</button><div id="v22Status">ข้อมูลแสดงตามเวลาตรวจวัดของแต่ละแหล่ง · รายการที่ไม่มีข้อมูลจะแสดงตามจริง</div></div>`;document.getElementById('v22Refresh').onclick=()=>v22GoHome();body.querySelectorAll('[data-v22lat]').forEach(b=>b.onclick=()=>{const lat=Number(b.dataset.v22lat),lon=Number(b.dataset.v22lon);if(Number.isFinite(lat)&&Number.isFinite(lon)){map.setView([lat,lon],10);L.popup().setLatLng([lat,lon]).setContent(v19Escape(b.dataset.v22name||'สถานีระดับน้ำ')).openOn(map);}});};
  draw();
  try{
-  const r=await fetch('/api/water/stations',{cache:'no-store'}),j=await r.json();
+  const ctrl=new AbortController();const timeout=setTimeout(()=>ctrl.abort(),9000);
+  let r,j;try{r=await fetch('/api/water/stations',{cache:'no-store',signal:ctrl.signal});if(!r.ok)throw Error('HTTP '+r.status);j=await r.json();}finally{clearTimeout(timeout);}
   if(!r.ok||!j.ok||!Array.isArray(j.stations))throw Error(j.error||'ไม่มีข้อมูลสถานี');
   const stations=j.stations.filter(s=>Number.isFinite(Number(s.levelMsl))&&s.levelMsl!==null&&s.levelMsl!==''&&s.observedAt);
   const newest=stations.reduce((m,s)=>Math.max(m,Date.parse(s.observedAt)||0),0);
   const current=stations.filter(s=>newest-(Date.parse(s.observedAt)||0)<=24*3600*1000);
-  const top=current.sort((a,b)=>Number(b.levelMsl)-Number(a.levelMsl))[0];
+  const top=current.reduce((best,s)=>!best||Number(s.levelMsl)>Number(best.levelMsl)?s:best,null);
   if(top){const lat=Number(top.lat),lon=Number(top.lon);const go=Number.isFinite(lat)&&Number.isFinite(lon)&&top.lat!==null&&top.lon!==null?`<button class="v22loc" data-v22lat="${lat}" data-v22lon="${lon}" data-v22name="${v19Escape(top.name)}">📍 ดูตำแหน่งบนแผนที่</button>`:'';
    cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด',Number(top.levelMsl).toFixed(2)+' เมตร',`${top.name} · ${top.province||'ไม่ระบุจังหวัด'} · ${top.river||top.basin||'ไม่ระบุแม่น้ำ'} · เวลา ${top.observedAt} · สูงสุดตามค่าระดับ MSL (ไม่ใช่อันดับเสี่ยงน้ำท่วม)`,go);
   }else cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด',unavailable,'ไม่พบสถานีที่มีเวลาและระดับน้ำตรวจวัดภายใน 24 ชั่วโมงของข้อมูลล่าสุด');
@@ -568,6 +570,8 @@ body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ร
 document.getElementById('closeModule').addEventListener('click',v22GoHome);
 document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){v22GoHome();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
+// Open national overview once all module state and handlers are initialized.
+try{v22GoHome();}catch(e){console.error('Overview init:',e);}
 })();
 </script>
 </body>
