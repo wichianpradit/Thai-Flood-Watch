@@ -8,7 +8,53 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>
+/* Thai Flood Watch - Popup and menu layout fix */
+
+/* แถบเมนูด้านซ้าย */
+aside {
+  position: relative;
+  z-index: 900;
+}
+
+/* พื้นที่แผนที่ */
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* กล่อง Popup ของ Leaflet */
+.leaflet-popup-pane {
+  z-index: 750 !important;
+}
+
+.leaflet-popup {
+  max-width: 320px;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #092137 !important;
+  color: #ffffff !important;
+  border: 1px solid #2b86d7;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px #0008;
+}
+
+.leaflet-popup-content {
+  font-family: "Noto Sans Thai", sans-serif;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* กล่องข้อมูลที่ลอยเหนือแผนที่ */
+.map-tabs {
+  z-index: 1100;
+}
+
+/* ป้องกันข้อความถูกตัด */
+.maparea {
+  overflow: hidden;
+}
+ <style>
 :root{--bg:#04101d;--panel:#081a2b;--panel2:#0b2136;--line:#173852;--txt:#eef7ff;--muted:#8fa9bd;--blue:#2c82ff;--cyan:#24c8ff;--green:#21d779;--yellow:#ffc23c;--orange:#ff8a24;--red:#ff4055;--violet:#7858ff}
 *{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:"Noto Sans Thai",sans-serif;overflow:hidden}
 button,input{font:inherit}.app{height:100%;display:grid;grid-template-columns:240px 1fr;grid-template-rows:82px 1fr;background:#05111e}
