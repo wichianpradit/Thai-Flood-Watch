@@ -135,6 +135,27 @@ header{grid-template-columns:minmax(245px,410px) minmax(150px,1fr) minmax(280px,
 <script>
 const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([13.0,101.2],5.8);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+// V21: real observed radar georeferenced XYZ tiles (RainViewer, not TMD).
+let v21RadarLayer=null,v21RadarActive=false,v21Opacity=0.7,v21RadarMeta=null;
+const v21Controls=document.createElement('div');v21Controls.id='v21RadarControls';
+v21Controls.style.cssText='display:none;position:absolute;z-index:800;left:12px;top:14px;max-width:245px;padding:12px;border-radius:12px;background:#08263eea;color:white;font:12px sans-serif;border:1px solid #3983a3;box-shadow:0 4px 14px #0008';
+v21Controls.innerHTML='<strong>📡 เรดาร์ฝนตรวจวัดจริง</strong><div style="margin:6px 0">แหล่งข้อมูล: RainViewer (ไม่ใช่ TMD)</div><div id="v21RadarTime">กำลังโหลดภาพ...</div><label style="display:block;margin-top:8px"><input id="v21RadarToggle" type="checkbox" checked> แสดงเรดาร์บนแผนที่</label><label style="display:block;margin-top:7px">ความเข้มภาพ <input id="v21RadarOpacity" type="range" min="20" max="100" value="70" style="width:100%"></label><div style="font-size:10px;color:#c1d8e7;margin-top:6px">สีแสดงการสะท้อนเรดาร์ ไม่ใช่ปริมาณฝนที่พื้นดิน (มม.)</div>';
+document.querySelector('.maparea').appendChild(v21Controls);
+document.getElementById('v21RadarToggle').onchange=e=>{if(v21RadarLayer){if(e.target.checked)v21RadarLayer.addTo(map);else map.removeLayer(v21RadarLayer);}};
+document.getElementById('v21RadarOpacity').oninput=e=>{v21Opacity=Number(e.target.value)/100;if(v21RadarLayer)v21RadarLayer.setOpacity(v21Opacity);};
+async function v21EnableRadar(on){
+ v21RadarActive=on;v21Controls.style.display=on?'block':'none';
+ if(!on){if(v21RadarLayer)map.removeLayer(v21RadarLayer);return;}
+ if(v21RadarLayer&&v21RadarMeta){if(document.getElementById('v21RadarToggle').checked)v21RadarLayer.addTo(map);return;}
+ try{
+  const r=await fetch('/api/radar/tiles');const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'Radar unavailable');
+  if(!v21RadarActive)return;
+  if(v21RadarLayer)map.removeLayer(v21RadarLayer);
+  v21RadarMeta=j;v21RadarLayer=L.tileLayer(j.tileUrl,{opacity:v21Opacity,maxNativeZoom:7,maxZoom:19,attribution:'Radar © RainViewer',errorTileUrl:''});
+  if(document.getElementById('v21RadarToggle').checked)v21RadarLayer.addTo(map);
+  document.getElementById('v21RadarTime').textContent='ภาพเวลา '+new Date(j.frameTime).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'});
+ }catch(e){document.getElementById('v21RadarTime').textContent='ยังโหลดเรดาร์ไม่ได้: '+e.message;}
+}
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
@@ -166,7 +187,7 @@ const rainPatchLayer = L.layerGroup();
 let rainMenuSelected = false;
 function updateRainPatches(){
   rainPatchLayer.clearLayers();
-  if(!rainMenuSelected || activeField!=='rain') { map.removeLayer(rainPatchLayer); return; }
+  if(!rainMenuSelected || activeField!=='rain' || (typeof rainV19Mode!=='undefined' && rainV19Mode==='observed')) { map.removeLayer(rainPatchLayer); return; }
   rainPatchLayer.addTo(map);
   for(const p of forecastPoints){
     const f=currentForecast(p.forecasts);
@@ -189,7 +210,7 @@ function setRainMapMode(on){
   drawPoints();
   let legend=document.getElementById('rainForecastLegend');
   if(!legend){legend=document.createElement('div');legend.id='rainForecastLegend';legend.style.cssText='position:absolute;z-index:650;left:12px;bottom:100px;max-width:290px;padding:12px;border:1px solid #326080;border-radius:12px;background:#061b2de8;color:#fff;font:12px sans-serif;line-height:1.65;box-shadow:0 6px 18px #0008;pointer-events:none';document.querySelector('.maparea').appendChild(legend);}
-  legend.style.display=on?'block':'none';
+  legend.style.display=(on && rainV19Mode!=='observed')?'block':'none';
   legend.innerHTML='<b>🌧️ แผนที่ฝนพยากรณ์ TMD</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="color:#32d6aa">● เบา 1–4.9</span><span style="color:#e5db38">● ปานกลาง 5–9.9</span><span style="color:#ff962e">● หนัก 10–19.9</span><span style="color:#f34352">● สูง ≥20</span></div><small>มม. ตามช่วงพยากรณ์ API · วงสีแสดงเฉพาะบริเวณใกล้จุดตัวอย่าง ไม่ใช่เรดาร์ฝนสดหรือปริมาณฝนจริงทั่วประเทศ · คลิกแผนที่เพื่อดูข้อมูลด้านขวา</small>';
 }
 window.setRainMapMode=setRainMapMode;
@@ -351,12 +372,12 @@ function v20RadarEmbed(){
  <div style="font-size:12px;color:#b6cee1;margin-top:8px">หากภาพว่าง แสดงว่าเว็บต้นทางอาจไม่อนุญาตให้ฝังหน้าเว็บ หรือการเชื่อมต่อล้มเหลว <a href="https://weather.tmd.go.th/composite/index_composite.html" target="_blank" rel="noopener noreferrer" style="color:#8bdcff">ตรวจสอบภาพที่ต้นทาง</a></div>
  </section>`;
 }
-function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;loadRainV19();}));}
+function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;v21EnableRadar(openKey==='ฝนปัจจุบัน'&&rainV19Mode==='observed');updateRainPatches();const legend=document.getElementById('rainForecastLegend');if(legend)legend.style.display=rainV19Mode==='observed'?'none':'block';loadRainV19();}));}
 async function loadRainV19(){
  if(openKey!=='ฝนปัจจุบัน')return;
  body.innerHTML=v19Buttons(rainV19Mode)+note('กำลังเตรียมข้อมูล...');v19WireButtons();
  if(rainV19Mode==='observed'){
-   body.innerHTML=v19Buttons('observed')+v20RadarEmbed()+grid([v19Card('🌧️','ฝนตรวจวัดรายจุด','ไม่มีข้อมูล','มม.','ต้องมี API สถานี'),v19Card('📡','ภาพเรดาร์','จากหน้า TMD','','ตรวจสอบเวลาในภาพ'),v19Card('🕒','เวลาตรวจวัด','ดูในเรดาร์','','ต้นทาง')])+note('ภาพเรดาร์เป็นข้อมูลจากหน้า TMD; ยังไม่มี API เชิงพิกัดสำหรับแปลงสีเรดาร์เป็นค่าฝนบนแผนที่ Leaflet');v19WireButtons();return;
+   body.innerHTML=v19Buttons('observed')+note('🗺️ เรดาร์ตรวจวัดจริงจาก RainViewer ซ้อนบนแผนที่หลัก (ไม่ใช่ TMD) · ใช้ปุ่มเปิด/ปิดและปรับความโปร่งใสบนแผนที่')+v20RadarEmbed()+grid([v19Card('🌧️','ฝนตรวจวัดรายจุด','ไม่มีข้อมูล','มม.','ต้องมี API สถานี'),v19Card('📡','ภาพเรดาร์','จากหน้า TMD','','ตรวจสอบเวลาในภาพ'),v19Card('🕒','เวลาตรวจวัด','ดูในเรดาร์','','ต้นทาง')])+note('ภาพเรดาร์เป็นข้อมูลจากหน้า TMD; ยังไม่มี API เชิงพิกัดสำหรับแปลงสีเรดาร์เป็นค่าฝนบนแผนที่ Leaflet');v19WireButtons();return;
  }
  if(rainV19Mode==='forecast-hourly'){
    body.innerHTML=v19Buttons('forecast-hourly')+note('กำลังโหลดพยากรณ์รายชั่วโมงจาก TMD...');v19WireButtons();
@@ -374,6 +395,7 @@ window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loa
 function show(key){
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
  if(typeof window.setRainMapMode==='function')window.setRainMapMode(key==='ฝนปัจจุบัน');
+ v21EnableRadar((key==='ฝนปัจจุบัน'&&rainV19Mode==='observed')||key==='เรดาร์สภาพอากาศ');
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
  else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
@@ -495,8 +517,8 @@ async function loadWater(){
  }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
-document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();});
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
+document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);v21EnableRadar(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();});
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);v21EnableRadar(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 })();
 </script>

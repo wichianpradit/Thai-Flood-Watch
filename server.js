@@ -230,6 +230,22 @@ app.get('/api/weather/7day',async(req,res)=>{
  }catch(e){if(cached)return res.json({...cached.payload,stale:true});res.status(502).json({ok:false,error:e.message});}
 });
 
+// V21: observed radar map tiles metadata; RainViewer is NOT TMD.
+let radarCache={at:0,value:null};
+app.get('/api/radar/tiles',async(req,res)=>{
+ try{
+  if(!radarCache.value||Date.now()-radarCache.at>5*60*1000){
+   const r=await fetch('https://api.rainviewer.com/public/weather-maps.json',{headers:{Accept:'application/json'},signal:AbortSignal.timeout(10000)});
+   if(!r.ok)throw Error('Radar provider HTTP '+r.status);
+   const j=await r.json(), frames=j.radar?.past||[],last=frames[frames.length-1];
+   if(!last?.path||!j.host)throw Error('No georeferenced radar frame available');
+   const host=new URL(j.host);if(host.protocol!=='https:'||!host.hostname.endsWith('rainviewer.com'))throw Error('Unexpected radar host');
+   radarCache={at:Date.now(),value:{ok:true,source:'RainViewer',provider:'RainViewer (not TMD)',observed:true,frameTime:new Date(last.time*1000).toISOString(),tileUrl:`${host.origin}${last.path}/256/{z}/{x}/{y}/2/1_1.png`}};
+  }
+  res.json(radarCache.value);
+ }catch(e){res.status(502).json({ok:false,error:e.message});}
+});
+
 app.get('/',(req,res)=>{const a=path.join(ROOT,'public','index.html'),b=path.join(ROOT,'index.html');const file=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!file)return res.status(404).json({ok:false,error:'index.html not found'});res.sendFile(file);});
 app.listen(PORT,'0.0.0.0',()=>console.log('Thai Flood Watch listening on '+PORT));
 
