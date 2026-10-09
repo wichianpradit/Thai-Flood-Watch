@@ -35,7 +35,7 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 <body>
 <div class="app">
 <header>
- <div class="brand"><div class="brand-logo">💧</div><div><h1>Thai Flood Watch</h1><p>เฝ้าระวังน้ำท่วมประเทศไทย แบบเรียลไทม์</p></div></div>
+ <div class="brand"><div class="brand-logo">💧</div><div><h1>Thai Flood Watch</h1><p>แผนที่พยากรณ์อากาศจาก TMD (ไม่ใช่เรดาร์ฝนสด)</p></div></div>
  <div class="search">⌕ <input placeholder="ค้นหาจังหวัด / อำเภอ / สถานที่..."><span>⚙</span></div>
  <div class="headstats">
   <div class="hbox"><b>☁️ <span id="temp">--°C</span></b><small>สภาพอากาศ</small></div>
@@ -60,22 +60,22 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
  <div class="maparea">
   <div id="map"></div><div class="mapveil"></div>
   <div class="map-tabs">
-   <button class="active">🌧️ เรดาร์ฝน</button><button>☁️ ฝนสะสม</button><button>☁️ เมฆ</button><button>≋ ลม</button><button>🌊 คลื่น</button><button>♨ อุณหภูมิ</button>
+   <button class="active">🌧️ พยากรณ์ฝน</button><button>☁️ ฝนรายชั่วโมง</button><button>💧 ความชื้น</button><button>≋ ลม</button><button>🌊 คลื่น (รอข้อมูล)</button><button>♨ อุณหภูมิ</button>
   </div>
  </div>
  <section class="rightbar">
   <div class="card">
    <div class="card-head"><div><h3>📊 สถานการณ์ประเทศไทย</h3><small>อัปเดตล่าสุด <span id="updated">--</span></small></div><button class="more">ดูทั้งหมด →</button></div>
    <div class="metrics">
-    <div class="metric"><div class="micon">🔺</div><b class="red">--</b><small>พื้นที่เฝ้าระวังสูง</small></div>
-    <div class="metric"><div class="micon">⚠️</div><b class="orange">--</b><small>พื้นที่เฝ้าระวัง</small></div>
-    <div class="metric"><div class="micon">🌊</div><b class="cyan">--</b><small>สถานีระดับน้ำ</small></div>
-    <div class="metric"><div class="micon">📹</div><b class="green">--</b><small>CCTV ออนไลน์</small></div>
+    <div class="metric"><div class="micon">🌧️</div><b class="cyan" id="rainNow">--</b><small>ฝนพยากรณ์จุดที่เลือก (มม.)</small></div>
+    <div class="metric"><div class="micon">💧</div><b class="orange" id="humidityNow">--</b><small>ความชื้น (%)</small></div>
+    <div class="metric"><div class="micon">💨</div><b class="cyan" id="windNow">--</b><small>ความเร็วลม (ม./วินาที)</small></div>
+    <div class="metric"><div class="micon">🧭</div><b class="green" id="directionNow">--</b><small>ทิศลม (องศา)</small></div>
    </div>
   </div>
   <div class="card">
    <div class="tabs"><button class="active">แจ้งเตือนล่าสุด</button><button>ระดับน้ำ</button><button>น้ำทะเลหนุน</button><button>ข่าวสาร</button></div>
-   <div class="alerts">
+   <div class="alerts" id="alerts"><div class="alertrow"><div class="alerttext"><b>กำลังโหลดพยากรณ์ TMD...</b><small>ข้อมูลพยากรณ์ ไม่ใช่การตรวจวัดฝนสด</small></div></div></div><div class="alerts" style="display:none">
     <div class="alertrow"><div class="alertico">!</div><div class="alerttext"><b class="red">รอเชื่อมระบบแจ้งเตือนจริง</b><small>ข้อมูลจาก API หน่วยงานจะปรากฏบริเวณนี้</small></div><div class="alerttime">LIVE</div></div>
     <div class="alertrow"><div class="alertico" style="background:#ff8b1d">☔</div><div class="alerttext"><b class="orange">ฝนตกหนักต่อเนื่อง</b><small>พร้อมรองรับข้อมูลรายจังหวัด/อำเภอ</small></div><div class="alerttime">API</div></div>
     <div class="alertrow"><div class="alertico" style="background:#237ff4">🌊</div><div class="alerttext"><b class="cyan">ระดับน้ำและน้ำทะเล</b><small>พร้อมเชื่อมสถานีตรวจวัด</small></div><div class="alerttime">API</div></div>
@@ -85,45 +85,193 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
   <div class="card">
    <div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง</h3><button class="more">ดูทั้งหมด →</button></div>
    <div class="cctv">
-    <div class="cam"><span class="live">● LIVE</span><div class="ct"><b>กล้องตัวอย่าง 01</b>รอ URL สตรีมจริง</div></div>
-    <div class="cam"><span class="live">● LIVE</span><div class="ct"><b>กล้องตัวอย่าง 02</b>รอ URL สตรีมจริง</div></div>
-    <div class="cam"><span class="live">OFFLINE</span><div class="ct"><b>กล้องตัวอย่าง 03</b>สถานะระบบ</div></div>
+    <div class="cam"><span class="live">● ตัวอย่าง</span><div class="ct"><b>กล้องตัวอย่าง 01</b>รอ URL สตรีมจริง</div></div>
+    <div class="cam"><span class="live">● ตัวอย่าง</span><div class="ct"><b>กล้องตัวอย่าง 02</b>รอ URL สตรีมจริง</div></div>
+    <div class="cam"><span class="live">ตัวอย่าง</span><div class="ct"><b>กล้องตัวอย่าง 03</b>สถานะระบบ</div></div>
    </div>
   </div>
  </section>
  <div class="bottom">
-  <div class="timeline"><button class="play" id="play">▶</button><div class="tmain"><b>เรดาร์ฝน (ล่าสุด)</b><div class="track"></div><div class="times"><span>16:00</span><span>16:30</span><span>17:00</span><span>17:30</span><span>18:00</span><span>ปัจจุบัน</span></div></div></div>
-  <div class="legend"><b>ความเข้มฝน (มม./ชม.)</b><div class="gradient"></div><div class="lgnums"><span>0</span><span>1</span><span>5</span><span>10</span><span>20</span><span>35</span><span>50</span><span>70+</span></div></div>
+  <div class="timeline"><button class="play" id="play">▶</button><div class="tmain"><b>พยากรณ์ฝนรายชั่วโมง (TMD)</b><div class="track"></div><div class="times"><span>16:00</span><span>16:30</span><span>17:00</span><span>17:30</span><span>18:00</span><span>ปัจจุบัน</span></div></div></div>
+  <div class="legend"><b>ฝนพยากรณ์รายชั่วโมง (มม.)</b><div class="gradient"></div><div class="lgnums"><span>0</span><span>1</span><span>5</span><span>10</span><span>20</span><span>35</span><span>50</span><span>70+</span></div></div>
  </div>
 </main>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+// TMD forecast integration. All weather layers are model forecasts, not live observations.
+const forecastLayer = L.layerGroup().addTo(map);
+const alertBox = document.getElementById('alerts');
+const rainEl = document.getElementById('rainNow');
+const humidityEl = document.getElementById('humidityNow');
+const windEl = document.getElementById('windNow');
+const directionEl = document.getElementById('directionNow');
+const tempEl = document.getElementById('temp');
+let selected = {lat:6.87, lon:101.25};
+let forecastPoints = [];
+let activeField = 'rain';
+const tabFields = ['rain','rain','rh','ws10m',null,'tc'];
+const fmt = (n, digits=1) => Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : '--';
+const safeTime = value => value ? new Date(value).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '--';
+function showStatus(message, isError=false){
+  alertBox.innerHTML='';
+  const row=document.createElement('div');row.className='alertrow';
+  const txt=document.createElement('div');txt.className='alerttext';
+  const b=document.createElement('b');b.textContent=message;b.style.color=isError?'#ff6478':'#64cfff';
+  const sm=document.createElement('small');sm.textContent='ข้อมูลพยากรณ์จากแบบจำลอง TMD ไม่ใช่ภาพเรดาร์หรือฝนที่กำลังตกจริง';
+  txt.append(b,sm);row.append(txt);alertBox.append(row);
+}
+async function getJSON(url){
+  const response=await fetch(url,{cache:'no-store'});
+  let json;try{json=await response.json();}catch{throw new Error('API ไม่ได้ส่ง JSON');}
+  if(!response.ok || !json.ok)throw new Error(json.error||`HTTP ${response.status}`);
+  return json;
+}
+function currentForecast(forecasts){
+  if(!Array.isArray(forecasts)||!forecasts.length)return null;
+  const now=Date.now();
+  return forecasts.find(f=>new Date(f.time).getTime()>=now-30*60*1000)||forecasts[0];
+}
+function rainColor(v){return v>=20?'#f34352':v>=10?'#ff962e':v>=5?'#e5db38':v>=1?'#32d6aa':'#38bdf8';}
+function drawPoints(){
+  forecastLayer.clearLayers();
+  for(const p of forecastPoints){
+    const f=currentForecast(p.forecasts);
+    if(!f)continue;
+    const v=Number(f.data?.[activeField]);
+    if(!Number.isFinite(v))continue;
+    const rain=Number(f.data?.rain||0);
+    const marker=L.circleMarker([p.lat,p.lon],{radius:Math.max(6,Math.min(16,7+rain/3)),color:'#ffffff',weight:1,fillColor:activeField==='rain'?rainColor(v):'#319dff',fillOpacity:.85});
+    marker.bindPopup(`<b>พยากรณ์ TMD</b><br>เวลา ${safeTime(f.time)}<br>ฝน ${fmt(f.data?.rain)} มม.<br>อุณหภูมิ ${fmt(f.data?.tc)} °C<br>ความชื้น ${fmt(f.data?.rh)}%<br>ลม ${fmt(f.data?.ws10m)} ม./วินาที<br><small>จุดตัวอย่าง ไม่ใช่เรดาร์สด</small>`);
+    marker.on('click',()=>loadLocation(p.lat,p.lon));
+    marker.addTo(forecastLayer);
+  }
+}
+async function loadLocation(lat,lon){
+  selected={lat,lon};showStatus('กำลังโหลดพยากรณ์พิกัด '+fmt(lat,3)+', '+fmt(lon,3));
+  try{
+    const json=await getJSON(`/api/tmd/weather3hours?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
+    const forecasts=json.data?.WeatherForecasts?.[0]?.forecasts;
+    const f=currentForecast(forecasts);
+    if(!f)throw new Error('ไม่พบพยากรณ์สำหรับพิกัดนี้');
+    rainEl.textContent=fmt(f.data?.rain);humidityEl.textContent=fmt(f.data?.rh);
+    windEl.textContent=fmt(f.data?.ws10m);directionEl.textContent=fmt(f.data?.wd10m,0)+'°';
+    tempEl.textContent=fmt(f.data?.tc)+'°C';
+    document.getElementById('updated').textContent='พยากรณ์ '+safeTime(f.time);
+    showStatus(`พยากรณ์ ${safeTime(f.time)} | ฝน ${fmt(f.data?.rain)} มม. | ${fmt(f.data?.tc)}°C`);
+  }catch(e){showStatus('โหลดข้อมูลพิกัดไม่ได้: '+e.message,true);}
+}
+async function loadMap(){
+  try{
+    const json=await getJSON('/api/tmd/rain-map');
+    forecastPoints=(json.points||[]).filter(p=>Array.isArray(p.forecasts)&&p.forecasts.length);
+    drawPoints();
+    if(!forecastPoints.length)showStatus('ไม่มีจุดพยากรณ์ที่โหลดสำเร็จ กรุณาตรวจสอบ TMD API',true);
+  }catch(e){showStatus('โหลดแผนที่พยากรณ์ไม่ได้: '+e.message,true);}
+}
+document.querySelectorAll('.map-tabs button').forEach((button,i)=>{
+  button.addEventListener('click',()=>{
+    if(tabFields[i]===null){showStatus('ข้อมูลคลื่นยังไม่ได้เชื่อม API ที่รองรับ',true);return;}
+    activeField=tabFields[i];drawPoints();
+  });
+});
+map.on('click',event=>loadLocation(event.latlng.lat,event.latlng.lng));
+loadLocation(selected.lat,selected.lon);
+loadMap();
+setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000);
+
+</script>
 <script>
 const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([13.0,101.2],5.8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,opacity:.55}).addTo(map);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,opacity:.68}).addTo(map);
 
-const points=[
- [18.7883,98.9853,'เชียงใหม่','#ff4055','!'],
- [16.4322,102.8236,'ขอนแก่น','#2c82ff','🌊'],
- [14.9799,102.0978,'นครราชสีมา','#ff4055','!'],
- [13.7563,100.5018,'กรุงเทพมหานคร','#24c8ff','📹'],
- [13.3611,100.9847,'ชลบุรี','#2c82ff','🌊'],
- [12.6814,101.2816,'ระยอง','#2c82ff','🌊'],
- [9.1382,99.3217,'สุราษฎร์ธานี','#ff4055','!'],
- [8.4304,99.9631,'นครศรีธรรมราช','#2c82ff','🌊'],
- [7.0084,100.4747,'สงขลา','#ff4055','!'],
- [6.8695,101.2505,'ปัตตานี','#2c82ff','🌊']
-];
-points.forEach(p=>{
- const icon=L.divIcon({className:'',html:`<div style="display:flex;align-items:center;gap:5px"><span style="width:31px;height:38px;border-radius:17px 17px 17px 4px;transform:rotate(-45deg);display:grid;place-items:center;background:${p[3]};border:2px solid white;box-shadow:0 3px 12px #0008"><span style="transform:rotate(45deg);font-size:13px">${p[4]}</span></span><span class="markerLabel">${p[2]}</span></div>`,iconSize:[130,40],iconAnchor:[15,36]});
- L.marker([p[0],p[1]],{icon}).addTo(map).bindPopup(`<b>${p[2]}</b><br>จุดตัวอย่าง UI<br><small>ยังไม่ใช่ข้อมูลเตือนภัยจริง</small>`);
-});
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 let playing=false;document.getElementById('play').onclick=e=>{playing=!playing;e.currentTarget.textContent=playing?'Ⅱ':'▶'};
 function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});document.getElementById('date').textContent=d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});document.getElementById('updated').textContent=d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.'}tick();setInterval(tick,1000);
+
+// TMD forecast integration. All weather layers are model forecasts, not live observations.
+const forecastLayer = L.layerGroup().addTo(map);
+const alertBox = document.getElementById('alerts');
+const rainEl = document.getElementById('rainNow');
+const humidityEl = document.getElementById('humidityNow');
+const windEl = document.getElementById('windNow');
+const directionEl = document.getElementById('directionNow');
+const tempEl = document.getElementById('temp');
+let selected = {lat:6.87, lon:101.25};
+let forecastPoints = [];
+let activeField = 'rain';
+const tabFields = ['rain','rain','rh','ws10m',null,'tc'];
+const fmt = (n, digits=1) => Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : '--';
+const safeTime = value => value ? new Date(value).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '--';
+function showStatus(message, isError=false){
+  alertBox.innerHTML='';
+  const row=document.createElement('div');row.className='alertrow';
+  const txt=document.createElement('div');txt.className='alerttext';
+  const b=document.createElement('b');b.textContent=message;b.style.color=isError?'#ff6478':'#64cfff';
+  const sm=document.createElement('small');sm.textContent='ข้อมูลพยากรณ์จากแบบจำลอง TMD ไม่ใช่ภาพเรดาร์หรือฝนที่กำลังตกจริง';
+  txt.append(b,sm);row.append(txt);alertBox.append(row);
+}
+async function getJSON(url){
+  const response=await fetch(url,{cache:'no-store'});
+  let json;try{json=await response.json();}catch{throw new Error('API ไม่ได้ส่ง JSON');}
+  if(!response.ok || !json.ok)throw new Error(json.error||`HTTP ${response.status}`);
+  return json;
+}
+function currentForecast(forecasts){
+  if(!Array.isArray(forecasts)||!forecasts.length)return null;
+  const now=Date.now();
+  return forecasts.find(f=>new Date(f.time).getTime()>=now-30*60*1000)||forecasts[0];
+}
+function rainColor(v){return v>=20?'#f34352':v>=10?'#ff962e':v>=5?'#e5db38':v>=1?'#32d6aa':'#38bdf8';}
+function drawPoints(){
+  forecastLayer.clearLayers();
+  for(const p of forecastPoints){
+    const f=currentForecast(p.forecasts);
+    if(!f)continue;
+    const v=Number(f.data?.[activeField]);
+    if(!Number.isFinite(v))continue;
+    const rain=Number(f.data?.rain||0);
+    const marker=L.circleMarker([p.lat,p.lon],{radius:Math.max(6,Math.min(16,7+rain/3)),color:'#ffffff',weight:1,fillColor:activeField==='rain'?rainColor(v):'#319dff',fillOpacity:.85});
+    marker.bindPopup(`<b>พยากรณ์ TMD</b><br>เวลา ${safeTime(f.time)}<br>ฝน ${fmt(f.data?.rain)} มม.<br>อุณหภูมิ ${fmt(f.data?.tc)} °C<br>ความชื้น ${fmt(f.data?.rh)}%<br>ลม ${fmt(f.data?.ws10m)} ม./วินาที<br><small>จุดตัวอย่าง ไม่ใช่เรดาร์สด</small>`);
+    marker.on('click',()=>loadLocation(p.lat,p.lon));
+    marker.addTo(forecastLayer);
+  }
+}
+async function loadLocation(lat,lon){
+  selected={lat,lon};showStatus('กำลังโหลดพยากรณ์พิกัด '+fmt(lat,3)+', '+fmt(lon,3));
+  try{
+    const json=await getJSON(`/api/tmd/weather3hours?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
+    const forecasts=json.data?.WeatherForecasts?.[0]?.forecasts;
+    const f=currentForecast(forecasts);
+    if(!f)throw new Error('ไม่พบพยากรณ์สำหรับพิกัดนี้');
+    rainEl.textContent=fmt(f.data?.rain);humidityEl.textContent=fmt(f.data?.rh);
+    windEl.textContent=fmt(f.data?.ws10m);directionEl.textContent=fmt(f.data?.wd10m,0)+'°';
+    tempEl.textContent=fmt(f.data?.tc)+'°C';
+    document.getElementById('updated').textContent='พยากรณ์ '+safeTime(f.time);
+    showStatus(`พยากรณ์ ${safeTime(f.time)} | ฝน ${fmt(f.data?.rain)} มม. | ${fmt(f.data?.tc)}°C`);
+  }catch(e){showStatus('โหลดข้อมูลพิกัดไม่ได้: '+e.message,true);}
+}
+async function loadMap(){
+  try{
+    const json=await getJSON('/api/tmd/rain-map');
+    forecastPoints=(json.points||[]).filter(p=>Array.isArray(p.forecasts)&&p.forecasts.length);
+    drawPoints();
+    if(!forecastPoints.length)showStatus('ไม่มีจุดพยากรณ์ที่โหลดสำเร็จ กรุณาตรวจสอบ TMD API',true);
+  }catch(e){showStatus('โหลดแผนที่พยากรณ์ไม่ได้: '+e.message,true);}
+}
+document.querySelectorAll('.map-tabs button').forEach((button,i)=>{
+  button.addEventListener('click',()=>{
+    if(tabFields[i]===null){showStatus('ข้อมูลคลื่นยังไม่ได้เชื่อม API ที่รองรับ',true);return;}
+    activeField=tabFields[i];drawPoints();
+  });
+});
+map.on('click',event=>loadLocation(event.latlng.lat,event.latlng.lng));
+loadLocation(selected.lat,selected.lon);
+loadMap();
+setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000);
+
 </script>
 </body>
 </html>
