@@ -183,7 +183,13 @@ setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000)
 <script>
 const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([13.0,101.2],5.8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,opacity:.55}).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,opacity:.68}).addTo(map);
+L.tileLayer(
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }
+).addTo(map);
 
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
