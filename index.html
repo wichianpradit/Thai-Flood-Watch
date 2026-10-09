@@ -68,6 +68,9 @@ header{grid-template-columns:minmax(245px,410px) minmax(150px,1fr) minmax(280px,
 @media(max-width:1100px){header{grid-template-columns:minmax(165px,220px) minmax(110px,1fr) minmax(220px,260px) auto;gap:6px;padding:7px}.brand h1{font-size:18px}.brand p{font-size:9px}.headstats .round{display:none}.national-summary-title small{display:none}.summary-value span{font-size:8px}.summary-value b{font-size:10px}}
 @media(max-width:820px){header{grid-template-columns:minmax(125px,1fr) minmax(190px,1.2fr);gap:8px}.national-summary{height:52px}.national-summary-title strong{font-size:10px}.national-summary-values{gap:2px}.summary-value{gap:2px}.summary-value span{font-size:7px}.summary-value b{font-size:9px}}
 @media(max-width:540px){header{grid-template-columns:minmax(105px,.8fr) minmax(190px,1.4fr)}.brand-logo{width:34px;height:34px;font-size:20px}.brand h1{font-size:14px}.national-summary{padding:4px}.national-summary-title strong{font-size:9px}}
+
+/* V19: Weather and radar data cards within existing right column */
+.v19-actions{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.v19-actions button{border:1px solid #2b6689;background:#0d3149;color:#d7efff;border-radius:9px;padding:8px 10px;font-size:11px;cursor:pointer}.v19-actions button.selected{background:#126ca2;border-color:#60c9ff;color:white}.v19-weather-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.v19-weather-card{border:1px solid #25506c;background:linear-gradient(155deg,#0c2c43,#081a2c);border-radius:12px;padding:12px 5px;text-align:center;min-width:0}.v19-weather-card .emoji{font-size:22px}.v19-weather-card .label{font-size:10px;color:#9ec5db;margin:6px 0}.v19-weather-card .value{font-size:17px;font-weight:800;color:#e8f9ff;overflow-wrap:anywhere}.v19-weather-card .unit{font-size:9px;color:#7ca6c1}.v19-seven{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v19-day{border:1px solid #22506e;border-radius:11px;padding:10px;background:#0b2a40;font-size:11px;line-height:1.8}.v19-day strong{color:#9ce2ff}.v19-warning{font-size:11px;line-height:1.7;color:#e5c58a;background:#3c2b1b;border:1px solid #805f33;padding:10px;border-radius:10px}
 </style>
 </head>
 <body>
@@ -250,6 +253,7 @@ async function loadLocation(lat,lon){
     document.getElementById('updated').textContent='พยากรณ์ '+safeTime(f.time);
     showStatus(`พยากรณ์ ${safeTime(f.time)} | ฝน ${fmt(f.data?.rain)} มม. | ${fmt(f.data?.tc)}°C`);
     if(typeof window.renderSelectedRainForecast==='function')window.renderSelectedRainForecast(f);
+    if(typeof window.refreshV19Selected==='function')window.refreshV19Selected();
   }catch(e){showStatus('โหลดข้อมูลพิกัดไม่ได้: '+e.message,true);}
 }
 async function loadMap(){
@@ -330,27 +334,51 @@ const dashboardOverview=document.getElementById('dashboardOverview');
 const title=document.getElementById('moduleTitle');
 const body=document.getElementById('moduleBody');
 const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];
-const headings={'ฝนปัจจุบัน':'🌧️ แผนที่ฝนพยากรณ์ TMD (ไม่ใช่เรดาร์สด)','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
+const headings={'ฝนปัจจุบัน':'🌧️ ฝนปัจจุบันและพยากรณ์ 7 วัน','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
 const note=(message)=>`<div class="moduleNote">${message}</div>`;
 const stat=(label,value,unit='')=>`<div class="moduleStat"><small>${label}</small><strong>${value}</strong><small>${unit}</small></div>`;
 const grid=(items)=>'<div class="moduleGrid">'+items.join('')+'</div>';
 const pending=(label)=>note('ยังไม่มีข้อมูล '+label+' จาก API ที่เชื่อมต่อและตรวจสอบแล้ว เมื่อเชื่อมสำเร็จจะแสดงข้อมูลที่นี่โดยตรง ไม่ต้องออกจากเว็บไซต์');
+let rainV19Mode='observed';
+const v19Escape=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+function v19Card(icon,label,value,unit='',kind='') {return `<div class="v19-weather-card"><div class="emoji">${icon}</div><div class="label">${label}</div><div class="value">${v19Escape(value??'--')}</div><div class="unit">${v19Escape(unit)} ${kind?('· '+v19Escape(kind)):''}</div></div>`;}
+function v19Buttons(selected){return `<div class="v19-actions"><button type="button" data-v19="observed" class="${selected==='observed'?'selected':''}">🌧️ ฝนปัจจุบัน</button><button type="button" data-v19="forecast-hourly" class="${selected==='forecast-hourly'?'selected':''}">⏱️ รายชั่วโมง</button><button type="button" data-v19="seven" class="${selected==='seven'?'selected':''}">📅 พยากรณ์ 7 วัน</button></div>`;}
+function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;loadRainV19();}));}
+async function loadRainV19(){
+ if(openKey!=='ฝนปัจจุบัน')return;
+ body.innerHTML=v19Buttons(rainV19Mode)+note('กำลังเตรียมข้อมูล...');v19WireButtons();
+ if(rainV19Mode==='observed'){
+   body.innerHTML=v19Buttons('observed')+'<div class="v19-warning">📡 ยังไม่ได้เชื่อมข้อมูลเรดาร์หรือสถานีฝนตรวจวัดจริงสำหรับพิกัดนี้ จึงไม่สามารถยืนยันว่าฝนกำลังตกหรือไม่ตกได้ และจะไม่ใช้ค่าพยากรณ์แทนค่าปัจจุบัน</div>'+grid([v19Card('🌧️','ฝนตรวจวัด','ไม่มีข้อมูล','มม.','ตรวจวัดจริง'),v19Card('📡','เรดาร์สด','ยังไม่เชื่อม','','ตรวจวัดจริง'),v19Card('🕒','เวลาตรวจวัด','--','','')])+note('เมื่อเชื่อมเรดาร์หรือสถานีตรวจวัดจริงแล้ว ข้อมูลจะปรากฏในส่วนนี้ แผนที่สีเดิมเป็นเพียงพยากรณ์ ไม่ใช่เรดาร์สด');v19WireButtons();return;
+ }
+ if(rainV19Mode==='forecast-hourly'){
+   body.innerHTML=v19Buttons('forecast-hourly')+note('กำลังโหลดพยากรณ์รายชั่วโมงจาก TMD...');v19WireButtons();
+   try{const j=await getJSON(`/api/tmd/weather3hours?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='ฝนปัจจุบัน'||rainV19Mode!=='forecast-hourly')return;const f=currentForecast(j.data?.WeatherForecasts?.[0]?.forecasts||[]);if(!f)throw Error('ไม่พบพยากรณ์');const d=f.data||{};body.innerHTML=v19Buttons('forecast-hourly')+note('พยากรณ์ TMD · '+safeTime(f.time)+' · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+'<div class="v19-weather-grid">'+v19Card('🌦️','ฝนพยากรณ์',fmt(d.rain),'มม.')+v19Card('🌡️','อุณหภูมิ',fmt(d.tc),'°C')+v19Card('💧','ความชื้น',fmt(d.rh),'%')+v19Card('💨','ลม',fmt(d.ws10m),'ม./วินาที')+v19Card('🧭','ทิศลม',fmt(d.wd10m),'องศา')+v19Card('🕒','เวลา',safeTime(f.time),'')+'</div>'+note('ทั้งหมดเป็นค่าพยากรณ์ ไม่ใช่ค่าตรวจวัดสด');v19WireButtons();}catch(e){body.innerHTML=v19Buttons('forecast-hourly')+note('ไม่สามารถโหลด TMD: '+v19Escape(e.message));v19WireButtons();}return;
+ }
+ try{const j=await getJSON(`/api/weather/7day?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='ฝนปัจจุบัน'||rainV19Mode!=='seven')return;const d=j.daily||{}, dates=d.time||[];body.innerHTML=v19Buttons('seven')+note('📅 พยากรณ์ล่วงหน้า 7 วัน · Open-Meteo (ข้อมูลแบบจำลอง ไม่ใช่ค่าตรวจวัด) · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+'<div class="v19-seven">'+dates.map((day,i)=>`<div class="v19-day"><strong>📅 ${v19Escape(day)}</strong><div>🌧️ ฝนรวม ${v19Escape(d.precipitation_sum?.[i]??'--')} มม.</div><div>☔ โอกาสฝน ${v19Escape(d.precipitation_probability_max?.[i]??'--')}%</div><div>🌡️ ${v19Escape(d.temperature_2m_min?.[i]??'--')}–${v19Escape(d.temperature_2m_max?.[i]??'--')} °C</div><div>💨 ลมสูงสุด ${v19Escape(d.wind_speed_10m_max?.[i]??'--')} กม./ชม.</div></div>`).join('')+'</div>'+note('แหล่งข้อมูล: Open-Meteo · พยากรณ์อาจเปลี่ยนแปลงได้');v19WireButtons();}catch(e){body.innerHTML=v19Buttons('seven')+note('โหลดพยากรณ์ 7 วันไม่ได้: '+v19Escape(e.message));v19WireButtons();}
+}
+async function loadRadarWeather(){
+ body.innerHTML=note('📡 เรดาร์สภาพอากาศ · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+'<div class="v19-weather-grid">'+[
+ v19Card('📡','เรดาร์ฝน','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('🌧️','ฝนตรวจวัด','ไม่มีข้อมูล','มม.','ยังไม่เชื่อม'),v19Card('🌡️','อุณหภูมิ','--','°C','พยากรณ์'),v19Card('💧','ความชื้น','--','%','พยากรณ์'),v19Card('💨','ความเร็วลม','--','ม./วินาที','พยากรณ์'),v19Card('🧭','ทิศลม','--','องศา','พยากรณ์'),v19Card('🌊','คลื่น','ไม่มีข้อมูล','ม.','ยังไม่เชื่อม'),v19Card('🔘','ความกดอากาศ','ไม่มีข้อมูล','hPa','ยังไม่เชื่อม'),v19Card('👁️','ทัศนวิสัย','ไม่มีข้อมูล','กม.','ยังไม่เชื่อม'),v19Card('☁️','เมฆ','ไม่มีข้อมูล','%','ยังไม่เชื่อม'),v19Card('⛈️','พายุ','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('☀️','UV','ไม่มีข้อมูล','','ยังไม่เชื่อม')].join('')+'</div>'+note('ค่าที่ไม่มี API ตรวจสอบได้จะแสดงไม่มีข้อมูล ไม่ใช้ข้อมูลจำลอง');
+ try{const j=await getJSON(`/api/tmd/weather3hours?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='เรดาร์สภาพอากาศ')return;const f=currentForecast(j.data?.WeatherForecasts?.[0]?.forecasts||[]);if(!f)return;const d=f.data||{};const cards=body.querySelectorAll('.v19-weather-card .value');[[2,d.tc],[3,d.rh],[4,d.ws10m],[5,d.wd10m]].forEach(([i,v])=>{if(v!==null&&v!==undefined&&v!=='')cards[i].textContent=fmt(v)});body.insertAdjacentHTML('beforeend',note('ค่าอุณหภูมิ ความชื้น และลมข้างต้นเป็น <b>พยากรณ์ TMD</b> เวลา '+safeTime(f.time)+' ไม่ใช่ค่าตรวจวัดสด'));}catch(e){body.insertAdjacentHTML('beforeend',note('พยากรณ์ TMD ไม่พร้อม: '+v19Escape(e.message)));}
+}
 let openKey='';
+window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loadRainV19();else if(openKey==='เรดาร์สภาพอากาศ')loadRadarWeather();};
 function show(key){
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
  if(typeof window.setRainMapMode==='function')window.setRainMapMode(key==='ฝนปัจจุบัน');
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
- if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
+ if(key==='ฝนปัจจุบัน')loadRainV19();
+ else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
  else if(key==='CCTV')body.innerHTML=note('📹 หมุดกล้อง CCTV ที่มีพิกัดจริงจะแสดงบนแผนที่ กดหมุดเพื่อเปิดภาพในช่องนี้ · ข้อมูลจาก ThaiWater และแหล่งที่เชื่อมต่อได้ · หากไม่พบหมุด หมายถึงยังไม่มีข้อมูลพิกัดหรือ API ไม่พร้อม')+grid([stat('กล้องบนแผนที่','ดูหมุด 📹','เฉพาะรายการที่มีพิกัด')]);
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
  else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
- else if(key==='เรดาร์สภาพอากาศ')body.innerHTML=pending('ภาพเรดาร์ตรวจวัดจริงจากหน่วยงานต้นทาง');
+ else if(key==='เรดาร์สภาพอากาศ')loadRadarWeather();
  else if(key==='CCTV'){body.innerHTML=note('รายชื่อกล้องจริงจาก ThaiWater แสดงในส่วน CCTV ด้านล่าง • กดเลือกกล้องเพื่อดูภาพหากสตรีมรองรับ');loadCCTV();}
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }
 window.renderSelectedRainForecast=function(f){
- if(openKey!=='ฝนปัจจุบัน'||!f)return;
+ if(openKey!=='ฝนปัจจุบัน'||!f||rainV19Mode!=='forecast-hourly')return;
  const d=f.data||{};
  const raw=d.rain;
  const mm=raw===null||raw===undefined||raw===''?NaN:Number(raw);
@@ -367,7 +395,7 @@ async function loadWeather(key){
  if(!f)throw new Error('ไม่พบพยากรณ์ในพิกัดนี้');
  const d=f.data||{};
  const location=note(`พิกัด ${fmt(selected.lat,3)}, ${fmt(selected.lon,3)} • พยากรณ์เวลา ${safeTime(f.time)}<br>เป็นข้อมูลพยากรณ์ ไม่ใช่ค่าตรวจวัดฝนสด`);
- if(key==='ฝนปัจจุบัน')window.renderSelectedRainForecast(f);
+ if(key==='ฝนปัจจุบัน'&&rainV19Mode==='forecast-hourly')window.renderSelectedRainForecast(f);
  if(key==='ลมและคลื่นทะเล')body.innerHTML=location+grid([stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที'),stat('ทิศทางลม',fmt(d.wd10m,0),'องศา')])+pending('ความสูงคลื่นและคาบคลื่น');
  if(key==='รายงานสถานการณ์')body.innerHTML=location+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ลม',fmt(d.ws10m),'ม./วินาที')])+note('สรุปนี้เป็นข้อมูลแบบจำลอง TMD ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ');
  }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลได้: '+String(e.message).replaceAll('<','&lt;'));}

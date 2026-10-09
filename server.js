@@ -217,6 +217,19 @@ app.get('/api/cctv/cameras',async(req,res)=>{
  }catch(e){res.status(502).json({ok:false,error:'ไม่สามารถเชื่อมรายการกล้อง ThaiWater: '+e.message});}
 });
 app.get('/api/modules/status',(req,res)=>res.json({ok:true,updatedAt:new Date().toISOString(),modules:{forecast:{available:!!process.env.TMD_TOKEN,source:'TMD forecast, not observed rainfall'},rainMap:{available:!!process.env.TMD_TOKEN,source:'TMD sampled forecast, not radar'},water:{available:true,source:'ThaiWater observed station water levels (MSL); situation codes not interpreted'},floodRisk:{available:false},tide:{available:false},radar:{available:false},waves:{available:false},cctv:{available:false},shelters:{available:false}}}));
+
+// V19: 7-day model forecast. This is not observed rainfall.
+const dailyCache=new Map();
+app.get('/api/weather/7day',async(req,res)=>{
+ const lat=Number(req.query.lat),lon=Number(req.query.lon);
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat < -90||lat > 90||lon < -180||lon > 180)return res.status(400).json({ok:false,error:'Invalid coordinates'});
+ const key=`${lat.toFixed(2)},${lon.toFixed(2)}`,cached=dailyCache.get(key);
+ if(cached&&Date.now()-cached.at<60*60*1000)return res.json(cached.payload);
+ try{const url=new URL('https://api.open-meteo.com/v1/forecast');url.searchParams.set('latitude',String(lat));url.searchParams.set('longitude',String(lon));url.searchParams.set('daily','precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,wind_speed_10m_max');url.searchParams.set('forecast_days','7');url.searchParams.set('timezone','Asia/Bangkok');
+ const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Open-Meteo HTTP '+r.status);const data=await r.json();if(!data.daily?.time)throw Error('Daily forecast missing');const payload={ok:true,source:'Open-Meteo',kind:'model forecast, not observations',retrievedAt:new Date().toISOString(),daily:data.daily};dailyCache.set(key,{at:Date.now(),payload});res.json(payload);
+ }catch(e){if(cached)return res.json({...cached.payload,stale:true});res.status(502).json({ok:false,error:e.message});}
+});
+
 app.get('/',(req,res)=>{const a=path.join(ROOT,'public','index.html'),b=path.join(ROOT,'index.html');const file=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!file)return res.status(404).json({ok:false,error:'index.html not found'});res.sendFile(file);});
 app.listen(PORT,'0.0.0.0',()=>console.log('Thai Flood Watch listening on '+PORT));
 
