@@ -1,1 +1,3 @@
-Thai Flood Watch V13: TMD forecast rain patches and click-to-update right panel. These are forecast sample points, not live radar. CCTV preserved. Replace index.html; server.js unchanged.
+Thai Flood Watch V14 - CCTV 3 screens + separate nationwide camera page
+Replace index.html and server.js and add cctv.html to GitHub root (or all three under public where appropriate).
+Camera streams depend on the upstream API and embed permissions. No fake live feed.

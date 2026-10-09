@@ -180,3 +180,5 @@ app.get('/api/cctv/cameras',async(req,res)=>{
 app.get('/api/modules/status',(req,res)=>res.json({ok:true,updatedAt:new Date().toISOString(),modules:{forecast:{available:!!process.env.TMD_TOKEN,source:'TMD forecast, not observed rainfall'},rainMap:{available:!!process.env.TMD_TOKEN,source:'TMD sampled forecast, not radar'},water:{available:true,source:'ThaiWater observed station water levels (MSL); situation codes not interpreted'},floodRisk:{available:false},tide:{available:false},radar:{available:false},waves:{available:false},cctv:{available:false},shelters:{available:false}}}));
 app.get('/',(req,res)=>{const a=path.join(ROOT,'public','index.html'),b=path.join(ROOT,'index.html');const file=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!file)return res.status(404).json({ok:false,error:'index.html not found'});res.sendFile(file);});
 app.listen(PORT,'0.0.0.0',()=>console.log('Thai Flood Watch listening on '+PORT));
+
+app.get('/cctv.html',(req,res)=>{const a=path.join(ROOT,'public','cctv.html'),b=path.join(ROOT,'cctv.html');const f=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!f)return res.status(404).send('CCTV page not found');res.sendFile(f);});
