@@ -33,7 +33,7 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 @media(max-width:820px){.app{grid-template-columns:68px 1fr;grid-template-rows:70px 1fr}header{grid-template-columns:1fr auto;padding:8px 10px}.brand h1{font-size:17px}.brand p,.search,.hbox{display:none}.brand-logo{width:43px;height:43px}.nav{padding:9px;justify-content:center}.nav div:not(.ni){display:none}.download{display:none}.rightbar{display:none}.maparea{right:0;bottom:78px}.bottom{grid-template-columns:1fr}.legend{display:none}.map-tabs{left:8px;right:auto;max-width:calc(100% - 16px);overflow:auto}.map-tabs button{white-space:nowrap}.round:nth-last-child(-n+2){display:none}}
 /* Module panel: anchored to content, never header or sidebar */
 #modulePanel{position:absolute;z-index:950;top:12px;right:12px;left:auto;width:min(480px,calc(100% - 24px));max-height:calc(100% - 106px);overflow:auto;background:#071b2bf7;border:1px solid #2c7197;border-radius:17px;padding:18px;box-shadow:0 12px 38px #0009;display:none}
-#modulePanel h2{font-size:18px;margin:0 0 9px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.7;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
+#modulePanel .moduleStat{padding:13px;background:#0d3048;border:1px solid #235777;border-radius:12px;margin:10px 0}#modulePanel .moduleStat strong{display:block;font-size:23px;color:#57d5ff}#modulePanel .moduleStat small{color:#a6c5d8}#modulePanel .moduleGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#modulePanel .moduleNote{padding:12px;border-radius:10px;background:#123249;color:#b9d8eb;line-height:1.8;font-size:12px}#modulePanel h2{font-size:18px;margin:0 0 9px}#modulePanel p,#modulePanel li{font-size:12px;line-height:1.7;color:#bbd0df}#modulePanel a{color:#64cbff}#modulePanel button{background:#153e5c;color:#fff;border:1px solid #31709a;border-radius:8px;padding:8px;cursor:pointer}#modulePanel .item{background:#0b2b43;border-radius:10px;padding:10px;margin:9px 0}#modulePanel .muted{color:#ffc56e}
 @media(max-width:820px){#modulePanel{left:8px;right:8px;width:auto;top:60px;max-height:calc(100% - 150px)}}
 </style>
 </head>
@@ -106,14 +106,7 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([13.0,101.2],5.8);
-L.tileLayer(
-  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
-  }
-).addTo(map);
-
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
@@ -206,24 +199,55 @@ setInterval(()=>{loadLocation(selected.lat,selected.lon);loadMap();},30*60*1000)
 
 <script>
 (function(){
-const panel=document.getElementById('modulePanel'), title=document.getElementById('moduleTitle'),body=document.getElementById('moduleBody');
-document.getElementById('closeModule').onclick=()=>panel.style.display='none';
-const link=(url,label)=>`<p><a href="${url}" target="_blank" rel="noopener noreferrer">↗ ${label}</a></p>`;
-const info={
-'ฝนปัจจุบัน':['🌧️ ฝนปัจจุบัน','ข้อมูลบนแผนที่เป็น <b>พยากรณ์รายชั่วโมง</b> จาก TMD ไม่ใช่ปริมาณฝนที่วัดได้จริง เรดาร์ฝนสดเปิดจากหน้าแหล่งข้อมูลทางการด้านล่าง',link('https://weather.tmd.go.th/composite/index_composite.html','เปิดเรดาร์ฝนคอมโพสิท กรมอุตุนิยมวิทยา')],
-'พื้นที่เสี่ยงน้ำท่วม':['⚠️ พื้นที่เสี่ยงน้ำท่วม','ยังไม่มีข้อมูลขอบเขตพื้นที่เสี่ยงและเกณฑ์เตือนภัยที่ตรวจสอบแล้ว จึงไม่แสดงสีเตือนภัยบนแผนที่โดยอัตโนมัติ',link('https://www.thaiwater.net/','ตรวจสอบสถานการณ์น้ำจาก ThaiWater')],
-'ระดับน้ำในแม่น้ำ':['🌿 ระดับน้ำในแม่น้ำ','กำลังเรียกข้อมูลสถานีวัดระดับน้ำจากแหล่งข้อมูลสาธารณะ หากต้นทางไม่ตอบสนองจะมีข้อความแจ้ง ไม่แสดงค่าที่แต่งขึ้น','<div id="waterResults" class="item">กำลังตรวจสอบข้อมูล...</div>'+link('https://www.thaiwater.net/','เปิดสถานีวัดน้ำ ThaiWater')],
-'น้ำทะเลหนุน':['🌊 น้ำทะเลหนุน','ยังไม่มีการเชื่อมข้อมูลสถานีวัดระดับน้ำทะเลและค่าทำนายรายชั่วโมงที่ตรวจสอบได้ จึงยังไม่สามารถแสดงระดับน้ำทะเลหนุนเป็นตัวเลขจริง',link('https://www.hydro.navy.mi.th/','ตรวจสอบข้อมูลกรมอุทกศาสตร์ กองทัพเรือ')],
-'เรดาร์สภาพอากาศ':['📡 เรดาร์สภาพอากาศ','ภาพเรดาร์จริงมีอยู่ที่เว็บไซต์กรมอุตุนิยมวิทยา ลิงก์นี้เปิดภาพต้นทาง ไม่ใช่ชั้นข้อมูลเรดาร์ที่ฝังบนแผนที่',link('https://weather.tmd.go.th/composite/index_composite.html','ดูเรดาร์คอมโพสิททั่วประเทศ')],
-'ลมและคลื่นทะเล':['〰️ ลมและคลื่นทะเล','ความเร็วและทิศทางลมจาก TMD แสดงได้แล้วเมื่อเลือกจุดพยากรณ์ ส่วนความสูงคลื่นและคาบคลื่นยังไม่มี API ที่เชื่อมสำเร็จ จึงไม่สร้างค่าจำลอง',link('https://www.tmd.go.th/','ตรวจสอบพยากรณ์ทางทะเล TMD')],
-'CCTV':['📹 CCTV ทั่วประเทศ','กล้องที่แสดงบนหน้าแรกยังเป็นภาพตัวอย่าง ไม่ใช่สตรีมสด ต้องเชื่อม URL สาธารณะของแต่ละหน่วยงานและตรวจสิทธิการเผยแพร่ก่อน','<p class="muted">สถานะ: รอแหล่งสตรีม CCTV ที่ได้รับอนุญาต</p>'],
-'จุดช่วยเหลือ':['📍 จุดช่วยเหลือ','ยังไม่มีฐานข้อมูลพิกัดศูนย์พักพิงที่ผ่านการตรวจสอบ กรุณาใช้ช่องทางหน่วยงานรับผิดชอบในพื้นที่ ไม่ใช้หมุดตัวอย่างเป็นจุดช่วยเหลือ','<p class="muted">สถานะ: รอฐานข้อมูลพิกัดที่ตรวจสอบแล้ว</p>'],
-'รายงานสถานการณ์':['📋 รายงานสถานการณ์','แผนที่และข้อมูลพยากรณ์อากาศใช้ประกอบการวางแผนได้ แต่ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ',link('https://www.tmd.go.th/','ประกาศกรมอุตุนิยมวิทยา')+link('https://www.thaiwater.net/','ข้อมูลสถานการณ์น้ำ ThaiWater')]
-};
-function openModule(key){const item=info[key];if(!item)return;title.textContent=item[0];body.innerHTML=`<p>${item[1]}</p>${item[2]||''}`;panel.style.display='block';if(key==='ระดับน้ำในแม่น้ำ')loadWater();}
-async function loadWater(){const target=document.getElementById('waterResults');if(!target)return;try{const r=await fetch('/api/water/stations',{cache:'no-store'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'เชื่อมต่อไม่ได้');const count=Array.isArray(j.data)?j.data.length:(Array.isArray(j.data?.data)?j.data.data.length:null);target.textContent='ต้นทางตอบกลับสำเร็จ'+(count!==null?' • รายการข้อมูล '+count:'')+' รายการ (ยังต้องตรวจสอบโครงสร้างและหน่วยก่อนแสดงระดับน้ำรายสถานี)';}catch(e){target.textContent='ยังดึงข้อมูลไม่ได้: '+e.message;}}
-const nav=document.querySelectorAll('.nav');nav.forEach((n,i)=>{n.addEventListener('click',()=>{if(i===0){panel.style.display='none';return;}const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];openModule(keys[i]);});});
-const tabs=document.querySelectorAll('.map-tabs button');tabs.forEach((t,i)=>{if([0,1,2,4].includes(i))t.addEventListener('click',()=>{if(i===0)openModule('เรดาร์สภาพอากาศ');if(i===1)openModule('ฝนปัจจุบัน');if(i===2)openModule('เรดาร์สภาพอากาศ');if(i===4)openModule('ลมและคลื่นทะเล');});});
+const panel=document.getElementById('modulePanel');
+const title=document.getElementById('moduleTitle');
+const body=document.getElementById('moduleBody');
+const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];
+const headings={'ฝนปัจจุบัน':'🌧️ ฝนและพยากรณ์รายชั่วโมง','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
+const note=(message)=>`<div class="moduleNote">${message}</div>`;
+const stat=(label,value,unit='')=>`<div class="moduleStat"><small>${label}</small><strong>${value}</strong><small>${unit}</small></div>`;
+const grid=(items)=>'<div class="moduleGrid">'+items.join('')+'</div>';
+const pending=(label)=>note('ยังไม่มีข้อมูล '+label+' จาก API ที่เชื่อมต่อและตรวจสอบแล้ว เมื่อเชื่อมสำเร็จจะแสดงข้อมูลที่นี่โดยตรง ไม่ต้องออกจากเว็บไซต์');
+let openKey='';
+function show(key){
+ openKey=key;title.textContent=headings[key]||key;panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
+ if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
+ else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
+ else if(key==='พื้นที่เสี่ยงน้ำท่วม')body.innerHTML=pending('แผนที่พื้นที่เสี่ยงน้ำท่วมและเกณฑ์แจ้งเตือน');
+ else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
+ else if(key==='เรดาร์สภาพอากาศ')body.innerHTML=pending('ภาพเรดาร์ฝนล่าสุดที่ได้รับสิทธิให้นำมาแสดงในเว็บ');
+ else if(key==='CCTV')body.innerHTML=pending('ภาพสดจากกล้องสาธารณะที่อนุญาตให้เผยแพร่');
+ else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
+}
+async function loadWeather(key){
+ body.innerHTML=note('กำลังดึงพยากรณ์ TMD สำหรับพิกัดที่เลือก...');
+ try{
+ const j=await getJSON(`/api/tmd/weather3hours?lat=${encodeURIComponent(selected.lat)}&lon=${encodeURIComponent(selected.lon)}`);
+ if(openKey!==key)return;
+ const forecasts=j.data?.WeatherForecasts?.[0]?.forecasts||[];
+ const f=currentForecast(forecasts);
+ if(!f)throw new Error('ไม่พบพยากรณ์ในพิกัดนี้');
+ const d=f.data||{};
+ const location=note(`พิกัด ${fmt(selected.lat,3)}, ${fmt(selected.lon,3)} • พยากรณ์เวลา ${safeTime(f.time)}<br>เป็นข้อมูลพยากรณ์ ไม่ใช่ค่าตรวจวัดฝนสด`);
+ if(key==='ฝนปัจจุบัน')body.innerHTML=location+grid([stat('ปริมาณฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที')])+note('เลือกตำแหน่งบนแผนที่เพื่อเปลี่ยนพิกัด แล้วกดเมนูนี้อีกครั้งเพื่อดูข้อมูลจุดใหม่');
+ if(key==='ลมและคลื่นทะเล')body.innerHTML=location+grid([stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที'),stat('ทิศทางลม',fmt(d.wd10m,0),'องศา')])+pending('ความสูงคลื่นและคาบคลื่น');
+ if(key==='รายงานสถานการณ์')body.innerHTML=location+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ลม',fmt(d.ws10m),'ม./วินาที')])+note('สรุปนี้เป็นข้อมูลแบบจำลอง TMD ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ');
+ }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลได้: '+String(e.message).replaceAll('<','&lt;'));}
+}
+async function loadWater(){
+ body.innerHTML=note('กำลังตรวจสอบ API สถานีระดับน้ำ...');
+ try{
+ const r=await fetch('/api/water/stations',{cache:'no-store'});
+ const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'API ไม่พร้อม');
+ if(openKey!=='ระดับน้ำในแม่น้ำ')return;
+ const items=Array.isArray(j.data)?j.data:(Array.isArray(j.data?.data)?j.data.data:null);
+ if(!items) {body.innerHTML=note('API ตอบกลับแล้ว แต่รูปแบบข้อมูลยังไม่รองรับการแสดงค่ารายสถานี');return;}
+ body.innerHTML=stat('จำนวนรายการจาก API',items.length,'รายการ')+note('ระบบรับข้อมูลได้แล้ว แต่ต้องตรวจสอบชื่อสถานี หน่วยวัด และเวลาตรวจวัดก่อนแสดงระดับน้ำรายสถานี');
+ }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ยังไม่สามารถโหลดสถานีระดับน้ำ: '+String(e.message).replaceAll('<','&lt;'));}
+}
+document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';openKey='';});
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';openKey='';return;}show(keys[i]);}));
+document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 })();
 </script>
 </body>
