@@ -92,26 +92,16 @@ main{grid-column:2;grid-row:2;position:relative;min-width:0;overflow:hidden}.map
   <div class="card" id="dataViewCard">
    <div id="dashboardOverview">
    <div class="tabs"><button class="active">แจ้งเตือนล่าสุด</button><button>ระดับน้ำ</button><button>น้ำทะเลหนุน</button><button>ข่าวสาร</button></div>
-   <div class="alerts" id="alerts"><div class="alertrow"><div class="alerttext"><b>กำลังโหลดพยากรณ์ TMD...</b><small>ข้อมูลพยากรณ์ ไม่ใช่การตรวจวัดฝนสด</small></div></div></div><div class="alerts" style="display:none">
-    <div class="alertrow"><div class="alertico">!</div><div class="alerttext"><b class="red">รอเชื่อมระบบแจ้งเตือนจริง</b><small>ข้อมูลจาก API หน่วยงานจะปรากฏบริเวณนี้</small></div><div class="alerttime">LIVE</div></div>
-    <div class="alertrow"><div class="alertico" style="background:#ff8b1d">☔</div><div class="alerttext"><b class="orange">ฝนตกหนักต่อเนื่อง</b><small>พร้อมรองรับข้อมูลรายจังหวัด/อำเภอ</small></div><div class="alerttime">API</div></div>
-    <div class="alertrow"><div class="alertico" style="background:#237ff4">🌊</div><div class="alerttext"><b class="cyan">ระดับน้ำและน้ำทะเล</b><small>พร้อมเชื่อมสถานีตรวจวัด</small></div><div class="alerttime">API</div></div>
-    <div class="alertrow"><div class="alertico" style="background:#6657d8">📢</div><div class="alerttext"><b>ประกาศจากหน่วยงาน</b><small>แสดงข่าว/ประกาศล่าสุดในอนาคต</small></div><div class="alerttime">NEWS</div></div>
-   </div>
-  </div>
+   <div class="alerts" id="alerts"><div class="alertrow"><div class="alerttext"><b>กำลังโหลดพยากรณ์ TMD (ไม่ใช่ฝนตรวจวัดจริง)...</b><small>ข้อมูลพยากรณ์ ไม่ใช่การตรวจวัดฝนสด</small></div></div></div>  </div>
   <div id="modulePanel" aria-label="ข้อมูลระบบตามเมนู"><div class="moduleTop"><h2 id="moduleTitle"></h2><button id="closeModule" type="button">✕ ภาพรวม</button></div><div id="moduleBody"></div></div>
   </div>
   <div class="card" id="cctvPermanent">
    <div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง</h3><button class="more">ดูทั้งหมด →</button></div>
-   <div class="cctv">
-    <div class="cam"><span class="live">● ตัวอย่าง</span><div class="ct"><b>กล้องตัวอย่าง 01</b>รอ URL สตรีมจริง</div></div>
-    <div class="cam"><span class="live">● ตัวอย่าง</span><div class="ct"><b>กล้องตัวอย่าง 02</b>รอ URL สตรีมจริง</div></div>
-    <div class="cam"><span class="live">ตัวอย่าง</span><div class="ct"><b>กล้องตัวอย่าง 03</b>สถานะระบบ</div></div>
-   </div>
+   <div class="cctv" style="display:block;padding:12px"><div class="moduleNote"><b>📹 ยังไม่มีสตรีม CCTV ที่ยืนยันได้</b><p>ส่วนกล้องยังอยู่ตำแหน่งเดิม แต่จะไม่แสดงภาพจำลองหรือป้าย LIVE จนกว่าจะเชื่อม URL สตรีมจริงที่ได้รับอนุญาต</p><small>แหล่งข้อมูล: ยังไม่เชื่อมต่อ · อัปเดต: ไม่มีข้อมูล</small></div></div>
   </div>
  </section>
  <div class="bottom">
-  <div class="timeline"><button class="play" id="play">▶</button><div class="tmain"><b>พยากรณ์ฝนรายชั่วโมง (TMD)</b><div class="track"></div><div class="times"><span>16:00</span><span>16:30</span><span>17:00</span><span>17:30</span><span>18:00</span><span>ปัจจุบัน</span></div></div></div>
+  <div class="timeline"><span class="play" id="play" title="ยังไม่มีข้อมูลภาพเคลื่อนไหว">◷</span><div class="tmain"><b>พยากรณ์ฝนรายชั่วโมง (TMD)</b><div class="track"></div><div class="times"><span>เลือกจุดบนแผนที่เพื่อดูเวลาพยากรณ์จาก TMD</span></div></div></div>
   <div class="legend"><b>ฝนพยากรณ์รายชั่วโมง (มม.)</b><div class="gradient"></div><div class="lgnums"><span>0</span><span>1</span><span>5</span><span>10</span><span>20</span><span>35</span><span>50</span><span>70+</span></div></div>
  </div>
 </main>
@@ -217,7 +207,7 @@ const dashboardOverview=document.getElementById('dashboardOverview');
 const title=document.getElementById('moduleTitle');
 const body=document.getElementById('moduleBody');
 const keys=['','ฝนปัจจุบัน','พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน','เรดาร์สภาพอากาศ','ลมและคลื่นทะเล','CCTV','จุดช่วยเหลือ','รายงานสถานการณ์'];
-const headings={'ฝนปัจจุบัน':'🌧️ ฝนและพยากรณ์รายชั่วโมง','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
+const headings={'ฝนปัจจุบัน':'🌧️ พยากรณ์ฝนรายชั่วโมง (ไม่ใช่ฝนสด)','พื้นที่เสี่ยงน้ำท่วม':'⚠️ พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ':'🌿 ระดับน้ำในแม่น้ำ','น้ำทะเลหนุน':'🌊 น้ำทะเลหนุน','เรดาร์สภาพอากาศ':'📡 เรดาร์สภาพอากาศ','ลมและคลื่นทะเล':'〰️ ลมและคลื่นทะเล','CCTV':'📹 กล้อง CCTV','จุดช่วยเหลือ':'📍 จุดช่วยเหลือ','รายงานสถานการณ์':'📋 รายงานสถานการณ์'};
 const note=(message)=>`<div class="moduleNote">${message}</div>`;
 const stat=(label,value,unit='')=>`<div class="moduleStat"><small>${label}</small><strong>${value}</strong><small>${unit}</small></div>`;
 const grid=(items)=>'<div class="moduleGrid">'+items.join('')+'</div>';
@@ -227,10 +217,10 @@ function show(key){
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
- else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadFloodFlags();
+ else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
- else if(key==='เรดาร์สภาพอากาศ')loadRainSamples(key);
- else if(key==='CCTV')body.innerHTML=note('ส่วนกล้อง CCTV พื้นที่เสี่ยงยังแสดงอยู่ด้านล่างของแถบข้อมูลนี้ตลอดเวลา ขณะนี้เป็นกล้องตัวอย่าง ยังไม่ได้เชื่อมสตรีมสดที่ได้รับอนุญาต');
+ else if(key==='เรดาร์สภาพอากาศ')body.innerHTML=pending('ภาพเรดาร์ตรวจวัดจริงจากหน่วยงานต้นทาง');
+ else if(key==='CCTV')body.innerHTML=note('ส่วน CCTV อยู่ด้านล่างตลอดเวลา • ยังไม่มี URL กล้องสดที่ตรวจสอบได้ จึงไม่แสดงภาพหรือสถานะ LIVE');
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }
 async function loadWeather(key){
@@ -243,7 +233,7 @@ async function loadWeather(key){
  if(!f)throw new Error('ไม่พบพยากรณ์ในพิกัดนี้');
  const d=f.data||{};
  const location=note(`พิกัด ${fmt(selected.lat,3)}, ${fmt(selected.lon,3)} • พยากรณ์เวลา ${safeTime(f.time)}<br>เป็นข้อมูลพยากรณ์ ไม่ใช่ค่าตรวจวัดฝนสด`);
- if(key==='ฝนปัจจุบัน')body.innerHTML=location+grid([stat('ปริมาณฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที')])+note('เลือกตำแหน่งบนแผนที่เพื่อเปลี่ยนพิกัด แล้วกดเมนูนี้อีกครั้งเพื่อดูข้อมูลจุดใหม่');
+ if(key==='ฝนปัจจุบัน')body.innerHTML=note('ยังไม่มีข้อมูลฝนที่ตรวจวัดจริงจากสถานีหรือเรดาร์ • ด้านล่างเป็นข้อมูลพยากรณ์จาก TMD เท่านั้น')+location+grid([stat('ปริมาณฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที')])+note('เลือกตำแหน่งบนแผนที่เพื่อเปลี่ยนพิกัด แล้วกดเมนูนี้อีกครั้งเพื่อดูข้อมูลจุดใหม่');
  if(key==='ลมและคลื่นทะเล')body.innerHTML=location+grid([stat('ความเร็วลม',fmt(d.ws10m),'ม./วินาที'),stat('ทิศทางลม',fmt(d.wd10m,0),'องศา')])+pending('ความสูงคลื่นและคาบคลื่น');
  if(key==='รายงานสถานการณ์')body.innerHTML=location+grid([stat('ฝนพยากรณ์',fmt(d.rain),'มม.'),stat('อุณหภูมิ',fmt(d.tc),'°C'),stat('ความชื้น',fmt(d.rh),'%'),stat('ลม',fmt(d.ws10m),'ม./วินาที')])+note('สรุปนี้เป็นข้อมูลแบบจำลอง TMD ไม่ใช่ประกาศเตือนภัยอย่างเป็นทางการ');
  }catch(e){if(openKey===key)body.innerHTML=note('ไม่สามารถโหลดข้อมูลได้: '+String(e.message).replaceAll('<','&lt;'));}
@@ -260,6 +250,10 @@ const flagLevels=[
 function flagForRain(rain){return flagLevels.find(l=>rain>=l.min&&rain<l.max)||null;}
 const floodFlagLayer=L.layerGroup().addTo(map);
 function flagLegendHtml(){return '<div class="flagLegend">'+flagLevels.map(l=>`<div class="flagRow"><span class="flagIcon" style="background:${l.color}">⚑</span><div><b>ธง${l.name} — ${l.status}</b><small>${l.max===Infinity?'ตั้งแต่ '+l.min+' มม./ชั่วโมง':l.min+' ถึงน้อยกว่า '+l.max+' มม./ชั่วโมง'}</small></div></div>`).join('')+'</div>';}
+async function loadVerifiedRisk(){
+ floodFlagLayer.clearLayers();
+ body.innerHTML=note('<b>🚩 พื้นที่เสี่ยงน้ำท่วม: ยังไม่มีการประเมินความเสี่ยงที่ยืนยันได้</b><br>ระบบธงเขียว–ม่วงจะเปิดใช้งานเมื่อมีเกณฑ์เตือนภัยและข้อมูลพื้นที่จากแหล่งที่เชื่อถือได้เท่านั้น ข้อมูลฝนพยากรณ์เพียงอย่างเดียวไม่สามารถใช้ตัดสินว่าพื้นที่ปลอดภัยหรือกำลังน้ำท่วมได้')+grid([stat('สถานะข้อมูล','รอยืนยัน','ข้อมูลจริง'),stat('ธงเตือนภัย','—','ยังไม่ประเมิน')])+note('แหล่งข้อมูล: ยังไม่เชื่อมข้อมูลประเมินความเสี่ยงรายพื้นที่ • เวลาอัปเดต: ไม่มีข้อมูล');
+}
 async function loadFloodFlags(){
  body.innerHTML=note('กำลังประเมินระดับฝนพยากรณ์จากจุดตัวอย่าง TMD...');
  floodFlagLayer.clearLayers();

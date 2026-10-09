@@ -1,3 +1,5 @@
-Thai Flood Watch V10 - 429 protection
-Replace server.js with this complete file. index.html is the unchanged V9 page, included for convenience.
-Existing TMD_TOKEN stays in Render environment. Cache is in memory and resets on redeploy/restart.
+Thai Flood Watch V11 — Verified Data Only
+Replace index.html and server.js with these full files.
+Uses real ThaiWater observations and TMD forecasts clearly labeled.
+CCTV, radar, tides, shelters, and flood warning flags remain unavailable until validated feeds exist.
+No mock LIVE cameras or invented flood safety levels.
