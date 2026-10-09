@@ -140,6 +140,23 @@ function tick(){const d=new Date();document.getElementById('clock').textContent=
 
 // TMD forecast integration. All weather layers are model forecasts, not live observations.
 const forecastLayer = L.layerGroup().addTo(map);
+// V18: CCTV pins are shown only in CCTV mode. Coordinates come from camera metadata.
+const cameraPinLayer=L.layerGroup();
+let cameraMapRows=[];
+function cameraMapIcon(){return L.divIcon({className:'',html:'<div style="background:#0d88ca;border:2px solid #fff;border-radius:10px;width:31px;height:31px;display:grid;place-items:center;box-shadow:0 2px 9px #0009;font-size:17px">📹</div>',iconSize:[35,35],iconAnchor:[17,17]});}
+function redrawCameraPins(){
+ cameraPinLayer.clearLayers();
+ for(const c of cameraMapRows){
+  const lat=Number(c.lat),lon=Number(c.lon);
+  if(c.lat==null||c.lon==null||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)continue;
+  const pin=L.marker([lat,lon],{icon:cameraMapIcon(),title:c.name||'CCTV'});
+  pin.on('click',()=>{if(typeof window.showCameraInRightPanel==='function')window.showCameraInRightPanel(c);});
+  pin.addTo(cameraPinLayer);
+ }
+}
+window.setCameraMapData=rows=>{cameraMapRows=Array.isArray(rows)?rows:[];redrawCameraPins();};
+window.setCameraMapMode=enabled=>{if(enabled){redrawCameraPins();cameraPinLayer.addTo(map);}else{map.removeLayer(cameraPinLayer);}};
+
 // V13: colored rainfall forecast patches around sampled TMD points.
 // These are NOT radar measurements, and areas between samples are not verified.
 const rainPatchLayer = L.layerGroup();
@@ -290,9 +307,22 @@ async function loadCCTV(){
  const host=document.getElementById('cctvReal');if(!host)return;
  host.textContent='กำลังโหลดรายการกล้องจริง...';
  try{const r=await fetch('/api/cctv/cameras');const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'HTTP '+r.status);
- cameraList=Array.isArray(j.cameras)?j.cameras:[];showThreeCameras();
+ cameraList=Array.isArray(j.cameras)?j.cameras:[];showThreeCameras();if(typeof window.setCameraMapData==='function')window.setCameraMapData(cameraList);
  }catch(e){host.textContent='ยังไม่สามารถโหลดข้อมูลกล้อง: '+e.message+' · เปิด “ดูทั้งหมด” เพื่อลองใหม่';}
 }
+window.showCameraInRightPanel=function(c){
+ const panel=document.getElementById('modulePanel'),overview=document.getElementById('dashboardOverview');
+ const heading=document.getElementById('moduleTitle'),body=document.getElementById('moduleBody');
+ if(!panel||!body)return;
+ overview.style.display='none';panel.style.display='block';heading.textContent='📹 '+(c.name||'กล้อง CCTV');
+ body.replaceChildren();
+ const meta=document.createElement('div');meta.className='moduleNote';
+ meta.textContent='จังหวัด: '+(c.province||'ไม่ระบุ')+' · หน่วยงาน: '+(c.provider||'ไม่ระบุ')+' · พิกัด: '+c.lat+', '+c.lon+' · ไม่ยืนยันสถานะ LIVE';body.append(meta);
+ const screen=document.createElement('div');screen.style.cssText='min-height:210px;background:#061726;border:1px solid #28506b;border-radius:10px;overflow:hidden;display:grid;place-items:center;margin-top:12px';body.append(screen);
+ cameraMedia(c,screen);
+ if(c.page&&/^https:\/\//i.test(c.page)){const a=document.createElement('a');a.href=c.page;a.target='_blank';a.rel='noopener noreferrer';a.textContent='หน้าแหล่งข้อมูลกล้องต้นทาง ↗';a.style.cssText='display:block;margin-top:12px;color:#76d7ff';body.append(a);}
+ const note=document.createElement('div');note.className='moduleNote';note.textContent='ภาพแสดงได้เมื่อมีสตรีมที่อนุญาตให้ฝังในเว็บและเบราว์เซอร์รองรับ หากเปิดไม่ได้จะไม่ใช้ภาพจำลอง';body.append(note);
+};
 document.addEventListener('DOMContentLoaded',loadCCTV);
 
 const panel=document.getElementById('modulePanel');
@@ -307,9 +337,11 @@ const grid=(items)=>'<div class="moduleGrid">'+items.join('')+'</div>';
 const pending=(label)=>note('ยังไม่มีข้อมูล '+label+' จาก API ที่เชื่อมต่อและตรวจสอบแล้ว เมื่อเชื่อมสำเร็จจะแสดงข้อมูลที่นี่โดยตรง ไม่ต้องออกจากเว็บไซต์');
 let openKey='';
 function show(key){
+ if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
  if(typeof window.setRainMapMode==='function')window.setRainMapMode(key==='ฝนปัจจุบัน');
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน'||key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
+ else if(key==='CCTV')body.innerHTML=note('📹 หมุดกล้อง CCTV ที่มีพิกัดจริงจะแสดงบนแผนที่ กดหมุดเพื่อเปิดภาพในช่องนี้ · ข้อมูลจาก ThaiWater และแหล่งที่เชื่อมต่อได้ · หากไม่พบหมุด หมายถึงยังไม่มีข้อมูลพิกัดหรือ API ไม่พร้อม')+grid([stat('กล้องบนแผนที่','ดูหมุด 📹','เฉพาะรายการที่มีพิกัด')]);
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
  else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
@@ -427,8 +459,8 @@ async function loadWater(){
  }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
-document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);openKey='';floodFlagLayer.clearLayers();});
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
+document.getElementById('closeModule').addEventListener('click',()=>{panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();});
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){panel.style.display='none';dashboardOverview.style.display='block';if(typeof window.setRainMapMode==='function')window.setRainMapMode(false);if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);openKey='';floodFlagLayer.clearLayers();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 })();
 </script>
