@@ -1,3 +1,4 @@
-Thai Flood Watch V15 — Compact header summary
-
-Replace index.html only to move the national summary from the right panel to the top header between search and weather. Original V14 server.js and cctv.html are included unchanged. Existing CCTV and modules remain in place.
+Thai Flood Watch V16 — Nationwide CCTV
+Replace index.html, server.js, cctv.html with these full files.
+CCTV province filter includes all 77 provinces; cameras are only those actually returned by ThaiWater.
+No fake streams or guarantees of live coverage. Keep TMD_TOKEN configured on Render.
