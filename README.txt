@@ -1,1 +1,1 @@
-V22.1 stability patch: overview initialization, cancellable ThaiWater fetch (9 seconds), avoid unnecessary full map redraw on Home, linear maximum calculation. Other files unchanged.
+V22.2 Critical Fix: removes premature v22GoHome() call in first script before second script initializes. This caused ReferenceError and prevented remaining map handlers from loading. Rain patch cleanup now safely exported. Replace index.html only.

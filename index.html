@@ -158,7 +158,7 @@ async function v21EnableRadar(on){
  }catch(e){document.getElementById('v21RadarTime').textContent='ยังโหลดเรดาร์ไม่ได้: '+e.message;}
 }
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
-v22GoHome();
+// Home is initialized at the end of the final script, after its state is ready.
 document.querySelectorAll('.map-tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.map-tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 document.querySelectorAll('.tabs button').forEach(n=>n.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));n.classList.add('active')});
 let playing=false;document.getElementById('play').onclick=e=>{playing=!playing;e.currentTarget.textContent=playing?'Ⅱ':'▶'};
@@ -216,6 +216,7 @@ function setRainMapMode(on){
   legend.innerHTML='<b>🌧️ แผนที่ฝนพยากรณ์ TMD</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="color:#32d6aa">● เบา 1–4.9</span><span style="color:#e5db38">● ปานกลาง 5–9.9</span><span style="color:#ff962e">● หนัก 10–19.9</span><span style="color:#f34352">● สูง ≥20</span></div><small>มม. ตามช่วงพยากรณ์ API · วงสีแสดงเฉพาะบริเวณใกล้จุดตัวอย่าง ไม่ใช่เรดาร์ฝนสดหรือปริมาณฝนจริงทั่วประเทศ · คลิกแผนที่เพื่อดูข้อมูลด้านขวา</small>';
 }
 window.setRainMapMode=setRainMapMode;
+window.v22DisableRainPatches=()=>{rainMenuSelected=false;if(map.hasLayer(rainPatchLayer))map.removeLayer(rainPatchLayer);const legend=document.getElementById('rainForecastLegend');if(legend)legend.style.display='none';};
 const alertBox = document.getElementById('alerts');
 const rainEl = document.getElementById('rainNow');
 const humidityEl = document.getElementById('humidityNow');
@@ -400,7 +401,7 @@ function v22Card(icon,heading,main,sub,clickable=''){
 }
 function v22ResetLayers(){
  // Switching panels must not recompute all map forecast markers.
- if(typeof window.setRainMapMode==='function' && typeof rainMenuSelected!=='undefined') { rainMenuSelected=false; const legend=document.getElementById('rainForecastLegend'); if(legend)legend.style.display='none'; }
+ if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);
  v21EnableRadar(false);floodFlagLayer.clearLayers();
 }
