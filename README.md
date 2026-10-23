@@ -38,3 +38,14 @@ Render: New Web Service; Root Directory blank; Build Command `npm install`; Star
 For an existing Render service, ensure Root Directory is blank and Start Command is `npm start`, then deploy latest commit.
 The Render service URL (not the GitHub repository URL) serves the app.
 If deployed via GitHub Pages alone, the Node backend will not run.
+
+## Deployment: avoid Not Found
+This is a separate Marine Weather service. Do NOT overwrite thai-flood-watch.onrender.com unless you intentionally want to replace Thai Flood Watch.
+1. Create a NEW GitHub repository for Marine Weather and upload all files from this ZIP at the repository ROOT.
+2. On Render choose New > Web Service, connect this repository.
+3. Root Directory: leave blank. Build Command: npm install. Start Command: npm start.
+4. Add secret environment variable TMD_PAT. Deploy.
+5. Test YOUR NEW Render URL: `/api/health` (JSON), then `/` (website).
+If `/api/health` is Not Found, the URL is pointing to the wrong service or wrong deployed revision.
+If `/api/health` works but `/` fails, verify `public/index.html` exists in the deployed repository root.
+Do not paste the TMD PAT into chat or GitHub.

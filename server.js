@@ -15,6 +15,7 @@ const DEF_NAME=process.env.DEFAULT_NAME||"Pattani Sea";
 const publicDir=path.join(__dirname,"public");
 app.use(express.static(publicDir));
 app.get("/",(req,res)=>res.sendFile(path.join(publicDir,"index.html")));
+app.get("/health",(req,res)=>res.json({ok:true,app:"marine-weather-mobile",staticIndex:__dirname}));
 const n=(v)=>Number.isFinite(Number(v))?Number(v):null;
 const qs=(v,d)=>Number.isFinite(Number(v))?Number(v).toFixed(d):"--";
 const degDir=(d)=>{if(d==null)return"--";const a=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];return a[Math.round(Number(d)/22.5)%16]};
@@ -102,4 +103,9 @@ app.get("/api/dashboard",async(req,res)=>{
   });
 });
 app.get("/api/health",(req,res)=>res.json({ok:true,tmdTokenConfigured:!!TMD_PAT}));
-app.listen(PORT,()=>console.log(`Marine Weather Mobile: http://localhost:${PORT}`));
+app.use((req,res)=>{
+  if(req.path.startsWith("/api/")) return res.status(404).json({error:"API_ROUTE_NOT_FOUND",path:req.path});
+  if(req.method==="GET" && !path.extname(req.path)) return res.sendFile(path.join(publicDir,"index.html"));
+  res.status(404).send("Static asset not found");
+});
+app.listen(PORT,"0.0.0.0",()=>console.log(`Marine Weather Mobile: http://localhost:${PORT}`));
