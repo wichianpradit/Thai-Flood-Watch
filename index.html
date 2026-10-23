@@ -2,7 +2,12 @@
 <body><main class="app">
 <header><div><div class="logo">MARINE <i>WEATHER</i></div><small>by Tai Pond Pattani</small></div><div class="live"><b></b><span id="live">LIVE</span></div></header>
 <div class="where"><div>📍 <strong id="place">--</strong><small id="coords"></small></div><button id="reload">UPDATE</button></div>
-<section id="home" class="page active"><div class="hero"><div><span>WEATHER • TMD</span><strong id="temp">--</strong><small id="cond">Current forecast</small></div><div class="wave"><span>WAVE NOW</span><strong id="wave">--</strong><small id="wdir">--</small></div></div><div id="cards" class="cards"></div><h3>SEA CONDITION <small>Marine model</small></h3><div id="seaCards" class="cards"></div></section>
+<section id="home" class="page active"><div class="home-layout"><div class="home-primary"><div class="hero"><div><span>WEATHER • TMD</span><strong id="temp">--</strong><small id="cond">Current forecast</small></div><div class="wave"><span>WAVE NOW</span><strong id="wave">--</strong><small id="wdir">--</small></div></div><div id="cards" class="cards"></div><h3>SEA CONDITION <small>Marine model</small></h3><div id="seaCards" class="cards"></div></div>
+<aside class="marine-side" aria-label="สรุปทะเลและน้ำขึ้นลง"><div class="side-head"><span>SEA OVERVIEW</span><small>สรุปสภาพทะเล</small></div>
+<div class="side-stats"><div><small>คลื่น</small><strong id="sideWave">--</strong></div><div><small>ลม</small><strong id="sideWind">--</strong></div><div><small>กระแสน้ำ</small><strong id="sideCurrent">--</strong></div></div>
+<div class="side-title">TIDE TREND <small>วันนี้</small></div><svg id="sideTide" viewBox="0 0 320 122" role="img" aria-label="แนวโน้มระดับน้ำวันนี้"></svg><div id="sideTideNote" class="side-note">รอข้อมูลระดับน้ำ</div>
+<button class="side-open" id="openTide">ดูกราฟน้ำขึ้นลง 24 ชั่วโมง →</button>
+</aside></div></section>
 <section id="weather" class="page"><h2>TMD WEATHER</h2><div id="weatherCards" class="cards"></div><h3>HOURLY STATUS</h3><div class="notice">ข้อมูลอากาศหน้านี้มาจาก TMD NWP โดยตรงผ่านเซิร์ฟเวอร์ของเว็บ</div></section>
 <section id="days" class="page"><div class="title"><h2>7 DAY FORECAST</h2><small>TMD + Marine</small></div><div class="switch"><button class="on" data-tab="wx">WEATHER</button><button data-tab="sea">SEA / WAVE</button></div><div id="dayList"></div></section>
 <section id="tide" class="page"><div class="title"><h2>TIDE & CURRENT</h2><small>Marine model • Asia/Bangkok</small></div>
