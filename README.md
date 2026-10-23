@@ -29,3 +29,12 @@ Deploy the Node server to a HTTPS host and set `TMD_PAT` as a secret environment
 - Marine model: Open-Meteo `sea_level_height_msl`, `ocean_current_velocity`, `ocean_current_direction`.
 - Tide reference is MSL, not chart datum. Turning points are hourly-resolution approximations. Not safe as sole coastal-navigation source.
 - Color thresholds are UI defaults, not universal safety ratings.
+
+
+## V3.1: Fix Cannot GET /
+Upload the CONTENTS of this ZIP directly to the GitHub repository root (not inside another folder).
+Required at repository root: `server.js`, `package.json`, `public/index.html`, `render.yaml`.
+Render: New Web Service; Root Directory blank; Build Command `npm install`; Start Command `npm start`; set environment variable `TMD_PAT` privately.
+For an existing Render service, ensure Root Directory is blank and Start Command is `npm start`, then deploy latest commit.
+The Render service URL (not the GitHub repository URL) serves the app.
+If deployed via GitHub Pages alone, the Node backend will not run.

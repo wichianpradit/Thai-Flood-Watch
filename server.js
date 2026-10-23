@@ -12,7 +12,9 @@ const DEF_LAT=Number(process.env.DEFAULT_LAT||6.8695);
 const DEF_LON=Number(process.env.DEFAULT_LON||101.2505);
 const DEF_NAME=process.env.DEFAULT_NAME||"Pattani Sea";
 
-app.use(express.static(path.join(__dirname,"public")));
+const publicDir=path.join(__dirname,"public");
+app.use(express.static(publicDir));
+app.get("/",(req,res)=>res.sendFile(path.join(publicDir,"index.html")));
 const n=(v)=>Number.isFinite(Number(v))?Number(v):null;
 const qs=(v,d)=>Number.isFinite(Number(v))?Number(v).toFixed(d):"--";
 const degDir=(d)=>{if(d==null)return"--";const a=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];return a[Math.round(Number(d)/22.5)%16]};
