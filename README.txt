@@ -1,1 +1,2 @@
-V22.2 Critical Fix: removes premature v22GoHome() call in first script before second script initializes. This caused ReferenceError and prevented remaining map handlers from loading. Rain patch cleanup now safely exported. Replace index.html only.
+Thai Flood Watch V21 brand update
+Replace index.html only. server.js and cctv.html unchanged.
