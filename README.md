@@ -1,27 +1,31 @@
-# Thai Flood Watch PRO UI + TMD Live
+# Marine Weather Mobile
 
-เวอร์ชันนี้ใช้หน้า PRO UI แบบละเอียดที่เลือกไว้ และเชื่อม Backend TMD Weather3Hours V2
+เว็บมือถือสร้างใหม่ แยกจาก ESP32
 
-## เริ่มใช้งาน
-1. ติดตั้ง Node.js 18+
-2. เปิด Terminal ในโฟลเดอร์
-3. npm install
-4. copy `.env.example` เป็น `.env`
-5. ใส่ TMD UID/UKEY ของคุณใน `.env`
-6. npm start
-7. เปิด http://localhost:3000
+## Data
+- Weather: TMD NWP API (`forecast/location/hourly/at`) with Bearer Personal Access Token.
+- Sea/Wave: Open-Meteo Marine API.
+- TMD PAT stays on the server in `.env`; it is not exposed to the phone browser.
 
-## ความปลอดภัย
-อย่าใส่ key ใน public/index.html และอย่า upload `.env` ขึ้น GitHub
+## Run on Windows
+1. Install Node.js 18+.
+2. Copy `.env.example` to `.env`.
+3. Put your TMD PAT in `TMD_PAT=...`.
+4. Open Command Prompt in this folder:
+   npm install
+   npm start
+5. Open http://localhost:3000
 
-## ข้อมูลจริงใน V1
-- สถานี TMD บนแผนที่
-- ฝนรอบตรวจ
-- ฝนสะสม 24 ชม.
-- อุณหภูมิ
-- ความชื้น
-- ความเร็วลม
-- เวลา Observation
-- สรุปจำนวนสถานี / สถานีมีฝน / สถานีฝนหนัก
+To use from another phone on the same Wi-Fi, open `http://<PC-LAN-IP>:3000`.
 
-ThaiWater, CCTV, radar imagery และ flood polygons ยังเป็นช่องเตรียมไว้สำหรับ API จริงในขั้นต่อไป
+## 7-day TMD note
+The backend requests `duration=168` and aggregates hourly TMD records by day. If the TMD endpoint/account rejects that duration, it automatically falls back to 24 hours. The UI never fabricates missing days.
+
+## Production
+Deploy the Node server to a HTTPS host and set `TMD_PAT` as a secret environment variable. Do not put the PAT in `public/app.js`.
+
+## Tide & Current V2
+- Menu TIDE: selectable 7 days, hourly tide-height line, hourly current color bars, click-to-inspect, estimated HIGH/LOW turning points.
+- Marine model: Open-Meteo `sea_level_height_msl`, `ocean_current_velocity`, `ocean_current_direction`.
+- Tide reference is MSL, not chart datum. Turning points are hourly-resolution approximations. Not safe as sole coastal-navigation source.
+- Color thresholds are UI defaults, not universal safety ratings.
