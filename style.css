@@ -6,15 +6,3 @@
 #tideDate{display:block;margin-top:6px;width:100%;background:#031827;color:#fff;border:1px solid #0b557d;padding:10px;border-radius:10px}
 .event{padding:12px;border:1px solid #0b557d;background:#062744;border-radius:12px;margin:7px 0;display:flex;justify-content:space-between}
 nav{grid-template-columns:repeat(6,1fr)}nav button{font-size:10px}
-
-/* V3: right-hand summary is part of page layout, never a popup */
-.home-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}.home-primary{min-width:0}
-.marine-side{background:linear-gradient(155deg,#073355,#05233b);border:1px solid #0b557d;border-radius:18px;padding:16px;align-self:start;min-width:0}
-.side-head{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:850;color:#00b8ff;font-size:14px}.side-head small,.side-title small{font-size:11px;color:#88a9bd;font-weight:500}
-.side-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:17px 0}.side-stats>div{background:#031a2c;border-radius:11px;padding:10px 7px;min-width:0}.side-stats small{display:block;color:#88a9bd;font-size:10px}.side-stats strong{display:block;margin-top:6px;font-size:17px;white-space:nowrap}
-.side-title{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin:18px 0 7px}
-#sideTide{display:block;width:100%;height:auto;background:#031b2e;border-radius:12px}
-.side-note{font-size:11px;color:#a9c8da;margin-top:9px;line-height:1.5}
-.side-open{margin-top:14px;width:100%;border:1px solid #0b76aa;border-radius:11px;background:#074b73;color:#f5faff;font-weight:750;padding:11px;cursor:pointer}
-@media(min-width:980px){.app{max-width:1180px}.home-layout{grid-template-columns:minmax(0,1fr) 320px}.marine-side{position:sticky;top:16px}}
-@media(max-width:979px){.marine-side{position:static}}

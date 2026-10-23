@@ -20,7 +20,7 @@ function render(){
  $("seaCards").innerHTML=card("WAVE PERIOD",val(s.period," s"))+card("CURRENT",val(s.current," kt"))+card("SEA TEMP",val(s.temp,"°C"));
  $("weatherCards").innerHTML=$("cards").innerHTML;
  $("seaFull").innerHTML=card("WAVE HEIGHT",val(s.wave," m"),"cyan")+card("WAVE PERIOD",val(s.period," s"))+card("WAVE DIR • FROM",dir(s.waveDir))+card("CURRENT",val(s.current," kt"))+card("CURRENT DIR • TO",dir(s.currentDir))+card("SEA TEMP",val(s.temp,"°C"));
- renderDays();renderTide();renderSide();
+ renderDays();renderTide();
 }
 function renderDays(){
  const rows=DATA?.days||[];$("dayList").innerHTML=rows.length?rows.map(x=>tab==="wx"
@@ -66,25 +66,3 @@ function selectTide(r){
  $("tideSelected").innerHTML=`<strong>${r.time.slice(11,16)} น.</strong> · ระดับน้ำ ${val(r.level," m")} (MSL)<br>กระแสน้ำ <b style="color:${st.color}">${val(r.current," kt")} · ${st.name}</b> · ทิศทาง ${dir(r.direction)}<br><small>สีเป็นเกณฑ์เพื่อแสดงผล ปรับใช้กับพื้นที่จริงด้วยความระมัดระวัง</small>`;
 }
 $("tideDate").addEventListener("change",drawTide);
-
-// V3: inline sidebar summary, never modal/popup. Mobile: flows below main cards.
-function renderSide(){
- if(!DATA)return;
- const w=DATA.weather||{},s=DATA.sea||{};
- $("sideWave").textContent=val(s.wave," m");
- $("sideWind").textContent=val(w.windKn," kt",0);
- $("sideCurrent").textContent=val(s.current," kt");
- const t=DATA.tide||{},today=new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Bangkok"});
- const rows=(t.hourly||[]).filter(x=>x.time.startsWith(today)).slice(0,24);
- const svg=$("sideTide");
- const ok=rows.filter(x=>x.level!=null);
- if(ok.length<2){svg.innerHTML='<text x="15" y="66" fill="#88a9bd" font-size="13">ยังไม่มีข้อมูลกราฟวันนี้</text>';$("sideTideNote").textContent="กราฟจะแสดงเมื่อ Marine API มีข้อมูลระดับน้ำ";return;}
- const min=Math.min(...ok.map(x=>x.level)),max=Math.max(...ok.map(x=>x.level)),span=Math.max(.05,max-min);
- const X=i=>18+i*282/Math.max(1,rows.length-1),Y=v=>91-(v-min)/span*68;
- let d="",dots="";
- rows.forEach((r,i)=>{if(r.level==null){d="";return}const x=X(i),y=Y(r.level);d+=(d?' L':'M')+x.toFixed(1)+' '+y.toFixed(1);
- if(r.current!=null){const col=strength(r.current).color;dots+=`<rect x="${(x-3).toFixed(1)}" y="100" width="6" height="8" rx="2" fill="${col}"/>`}});
- svg.innerHTML=`<line x1="18" y1="91" x2="304" y2="91" stroke="#31536a"/><path d="${d}" fill="none" stroke="#00b8ff" stroke-width="3" stroke-linejoin="round"/>${dots}<text x="18" y="118" fill="#88a9bd" font-size="10">00</text><text x="288" y="118" fill="#88a9bd" font-size="10">23</text>`;
- $("sideTideNote").textContent=`ระดับน้ำ ${min.toFixed(2)}–${max.toFixed(2)} m (MSL) • สีแท่งด้านล่าง = ความแรงกระแสน้ำ`;
-}
-$("openTide").onclick=()=>{const b=document.querySelector('nav button[data-page="tide"]');if(b)b.click()};
