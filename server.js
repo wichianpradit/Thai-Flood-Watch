@@ -262,29 +262,41 @@ function configuredExtraCameras(){
   return [{id:'extra-'+i,name,province,stream,snapshot,page,
    category:allowed.includes(r.category)?r.category:cameraCategory(name),
    provider:String(r.provider||'หน่วยงานเจ้าของกล้อง').slice(0,100),
-   lat:Number.isFinite(Number(r.lat))?Number(r.lat):null,
-   lon:Number.isFinite(Number(r.lon))?Number(r.lon):null}];
+   lat:r.lat!==null&&r.lat!==undefined&&Number.isFinite(Number(r.lat))&&Math.abs(Number(r.lat))<=90?Number(r.lat):null,
+   lon:r.lon!==null&&r.lon!==undefined&&Number.isFinite(Number(r.lon))&&Math.abs(Number(r.lon))<=180?Number(r.lon):null}];
  });
 }
 function mergedCameras(base){
  const all=[...base,...configuredExtraCameras()],seen=new Set();
  return all.filter(c=>{const key=[c.provider,c.name,c.province,c.stream||c.snapshot||c.page].join('|');if(seen.has(key))return false;seen.add(key);return true;});
 }
-app.get('/api/cctv/sources',(req,res)=>res.json({ok:true,sources:[
- {name:'ThaiWater',type:'integrated',note:'รายชื่อกล้องจาก API; ไม่รับรองสตรีมออนไลน์'},
- {name:'กรมทางหลวง',type:'directory',url:'https://www.highwaytraffic.go.th/',note:'ตรวจสอบสตรีมและสิทธิ์การฝังภาพก่อนเพิ่ม'},
- {name:'สำนักการระบายน้ำ กรุงเทพมหานคร',type:'directory',url:'https://floodbangkok.bangkok.go.th/',note:'ตรวจสอบสตรีมและสิทธิ์การฝังภาพก่อนเพิ่ม'}
- ]}));
+// V14 provider catalog. Directory presence does not imply a working embeddable stream.
+const CCTV_PROVIDERS=[
+ {name:'ThaiWater',type:'integrated',url:'https://www.thaiwater.net/',note:'ดึงรายการผ่าน API; ภาพสดขึ้นอยู่กับลิงก์ต้นทาง'},
+ {name:'กรมทรัพยากรน้ำ (DWR)',type:'directory',url:'https://mekhala.dwr.go.th/cctv/cctv-active.php',note:'ต้องได้รับลิงก์ภาพหรือ API ที่อนุญาต'},
+ {name:'กรมทางหลวง (DOH)',type:'directory',url:'https://www.highwaytraffic.go.th/',note:'ต้องตรวจสอบสิทธิ์สตรีม'},
+ {name:'กรุงเทพมหานคร (BMA)',type:'directory',url:'https://cpudapp.bangkok.go.th/bmatraffic',note:'ต้องตรวจสอบสิทธิ์ฝังภาพ'},
+ {name:'กรมชลประทาน (RID)',type:'directory',url:'https://water.rid.go.th/hyd/Report/cctv.html',note:'ต้องตรวจสอบลิงก์ภาพที่อนุญาต'},
+ {name:'Longdo / iTIC',type:'directory',url:'https://traffic.longdo.com/',note:'ต้องมีสิทธิ์ API/สัญญาอนุญาต'},
+ {name:'EGAT',type:'directory',url:'https://water.egat.co.th/woc/allcctv.php',note:'ต้องตรวจสอบลิงก์ภาพที่อนุญาต'},
+ {name:'MAHOLAN',type:'directory',url:'https://cctv.maholan.net/',note:'เป็นแหล่งรวมรายการ; ตรวจสอบสิทธิ์เจ้าของภาพแต่ละกล้อง'}
+];
+app.get('/api/cctv/sources',(req,res)=>res.json({ok:true,sources:CCTV_PROVIDERS.map(p=>({...p,configuredCount:configuredExtraCameras().filter(c=>c.provider===p.name).length}))}));
 app.get('/api/cctv/cameras',async(req,res)=>{
+ res.set('Cache-Control','no-store');
  try{
-  if(Date.now()-cameraCache.at<10*60*1000&&cameraCache.at)return res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(cameraCache.items),streamVerified:false});
+  if(Date.now()-cameraCache.at<10*60*1000&&cameraCache.at)return res.json({ok:true,source:'ThaiWater + configured authorized sources',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(cameraCache.items),streamVerified:false});
   const r=await fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/cctv',{headers:{Accept:'application/json'},signal:AbortSignal.timeout(14000)});
   if(!r.ok)throw new Error('ThaiWater CCTV HTTP '+r.status);
   const data=await r.json();const rows=flattenCameras(data);
   const items=rows.map(normalizeCamera).filter(c=>c.stream||c.snapshot||c.page);
   cameraCache={at:Date.now(),items};
-  res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(items),streamVerified:false,directoryCount:rows.length});
- }catch(e){res.status(502).json({ok:false,error:'ไม่สามารถเชื่อมรายการกล้อง ThaiWater: '+e.message});}
+  res.json({ok:true,source:'ThaiWater + configured authorized sources',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(items),streamVerified:false,directoryCount:rows.length});
+ }catch(e){
+  const extras=configuredExtraCameras();
+  if(extras.length)return res.json({ok:true,source:'configured authorized sources (ThaiWater unavailable)',warning:'ThaiWater unavailable: '+e.message,fetchedAt:new Date().toISOString(),cameras:extras,streamVerified:false});
+  res.status(502).json({ok:false,error:'ไม่สามารถเชื่อมรายการกล้อง ThaiWater: '+e.message});
+ }
 });
 
 // V8: Current modeled precipitation at representative district centers.
