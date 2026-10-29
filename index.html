@@ -528,8 +528,58 @@ function v22ResetLayers(){
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);
  v21EnableRadar(false);floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();clearRiverTrends();
 }
+
+// V10: overview layer switcher; no simulated flood-risk polygons or invented warning levels.
+let v10Generation=0;
+const v10Toggles={radar:true,water:true,rivers:true,cctv:true};
+const v10Control=document.createElement('div');
+v10Control.id='v10Layers';
+v10Control.style.cssText='padding:9px 10px;border:1px solid #32627b;border-radius:10px;background:#0a273c;margin:8px 0;color:#e5f6ff;font-size:12px;display:none';
+v10Control.innerHTML='<b>🗺️ ชั้นข้อมูลบนแผนที่ภาพรวม</b><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:9px">'+
+ [['radar','📡 เรดาร์ฝน'],['water','💧 สถานีระดับน้ำ'],['rivers','〰️ แนวแม่น้ำ'],['cctv','📹 CCTV']].map(([id,label])=>
+ '<label style="display:inline-flex;align-items:center;gap:4px;border:1px solid #3c6880;padding:6px;border-radius:8px"><input type="checkbox" data-v10="'+id+'" checked> '+label+'</label>').join('')+
+ '</div><small id="v10LayerStatus" style="display:block;margin-top:7px;color:#a9cadd">สีแนวแม่น้ำแสดงแนวโน้มใกล้สถานี ไม่ใช่คำเตือนน้ำท่วม · ยังไม่มีชั้นพื้นที่เสี่ยงที่ยืนยันได้</small>';
+document.querySelector('#modulePanel .moduleTop').insertAdjacentElement('afterend',v10Control);
+function v10ShowControls(on){v10Control.style.display=on?'block':'none';}
+function v10Status(msg){const e=document.getElementById('v10LayerStatus');if(e)e.textContent=msg;}
+function v10Apply(){
+ if(openKey!=='แผนที่รวม')return;
+ v21EnableRadar(v10Toggles.radar);
+ if(v10Toggles.water){floodStationMap();floodStationMarkers.addTo(map);}else{floodStationMarkers.clearLayers();}
+ if(v10Toggles.rivers){if(floodMonitorStations.length)showRiverTrends(floodMonitorStations);}else clearRiverTrends();
+ if(v10Toggles.cctv){redrawCameraPins();cameraPinLayer.addTo(map);}else map.removeLayer(cameraPinLayer);
+}
+v10Control.querySelectorAll('input[data-v10]').forEach(el=>el.addEventListener('change',()=>{
+ v10Toggles[el.dataset.v10]=el.checked;
+ v10Apply();
+}));
+async function v10LoadMapLayers(){
+ const gen=++v10Generation;
+ v10Status('กำลังโหลดข้อมูลสถานีและกล้องจาก API · เรดาร์เป็นภาพล่าสุดที่แหล่งข้อมูลมีให้');
+ v21EnableRadar(v10Toggles.radar);
+ const jobs=[
+  (async()=>{const j=await getJSON('/api/flood/monitor');if(!Array.isArray(j.stations))throw Error('ไม่มีข้อมูลสถานี');
+   if(gen!==v10Generation||openKey!=='แผนที่รวม')return;
+   floodMonitorStations=j.stations; if(v10Toggles.water)floodStationMap();
+   if(v10Toggles.rivers)showRiverTrends(floodMonitorStations);
+  })(),
+  (async()=>{const j=await getJSON('/api/cctv/cameras');if(!j.ok)throw Error('ไม่มีข้อมูลกล้อง');
+   if(gen!==v10Generation||openKey!=='แผนที่รวม')return;
+   cameraMapRows=Array.isArray(j.cameras)?j.cameras:[];redrawCameraPins();
+   if(v10Toggles.cctv)cameraPinLayer.addTo(map);
+  })()
+ ];
+ const settled=await Promise.allSettled(jobs);
+ if(gen!==v10Generation||openKey!=='แผนที่รวม')return;
+ const failed=settled.filter(x=>x.status==='rejected').length;
+ v10Status('สถานีระดับน้ำ: '+floodStationMarkers.getLayers().length+' จุด · CCTV มีพิกัด: '+cameraPinLayer.getLayers().length+' จุด'+
+  (failed?' · บางแหล่งข้อมูลยังโหลดไม่ได้ ('+failed+')':'')+
+  ' · ไม่มีชั้นพื้นที่เสี่ยงยืนยัน: ไม่แสดงการเตือนภัยสมมุติ');
+}
+
 function v22GoHome(){
  v22ResetLayers();openKey='แผนที่รวม';
+ v10ShowControls(true);v10LoadMapLayers();
  document.querySelectorAll('.nav').forEach((n,i)=>n.classList.toggle('active',i===0));
  if(map.getZoom()!==6 || map.getCenter().distanceTo(L.latLng(13.0,101.2))>300000)map.setView([13.0,101.2],6,{animate:false});
  dashboardOverview.style.display='none';panel.style.display='block';panel.scrollTop=0;
@@ -567,6 +617,7 @@ async function v22LoadOverview(request){
 let openKey='';
 window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loadRainV19();else if(openKey==='เรดาร์สภาพอากาศ')loadRadarWeather();};
 function show(key){
+ v10ShowControls(false);v10Generation++;
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
  if(key==='ฝนปัจจุบัน'&&typeof window.setRainMapMode==='function')window.setRainMapMode(true);else if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  v21EnableRadar(key==='เรดาร์สภาพอากาศ'||(key==='ฝนปัจจุบัน'&&rainV19Mode==='observed'));
@@ -630,7 +681,7 @@ async function drawRiverForStation(s,gen){
  try{
   const r=await fetch('/api/rivers/near-station?'+new URLSearchParams({lat:s.lat,lon:s.lon,river:s.river||''}),{cache:'default'});
   const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'ไม่พบแนวลำน้ำ');
-  if(gen!==riverLoadGeneration||!['พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ'].includes(openKey))return;
+  if(gen!==riverLoadGeneration||!['พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ','แผนที่รวม'].includes(openKey))return;
   const color=floodTrendColor(s);
   for(const seg of j.segments||[]){
    if(!Array.isArray(seg.coordinates)||seg.coordinates.length<2)continue;
