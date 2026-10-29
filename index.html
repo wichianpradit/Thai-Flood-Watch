@@ -597,14 +597,14 @@ function v22GoHome(){
 async function v22LoadOverview(request){
  const unavailable='ยังไม่มีข้อมูลตรวจวัดที่ยืนยันได้';
  const cards=[
-  v22Card('🌧️','จังหวัดฝนตกหนักที่สุด',unavailable,'ต้องใช้ฝนตรวจวัดรายจังหวัดช่วงเวลาเดียวกัน · ภาพเรดาร์ไม่ใช่ค่าฝน มม.'),
-  v22Card('🚩','พื้นที่เสี่ยงน้ำท่วมสูงสุด',unavailable,'ต้องใช้ประกาศเตือนภัยหรือระดับน้ำเทียบตลิ่งที่ยืนยันเกณฑ์'),
+  v22Card('🌧️','ฝนสูงสุดในจุดตัวอย่าง','กำลังโหลด...','แบบจำลอง Open-Meteo · ไม่ใช่ฝนตรวจวัดจริง'),
+  v22Card('🚩','สถานีระดับน้ำเพิ่มขึ้นมาก','กำลังโหลด...','การเฝ้าระวังการเพิ่มของระดับน้ำ ไม่ใช่ประกาศเตือนน้ำท่วม'),
   v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด','กำลังโหลดสถานี...','ThaiWater · ระดับน้ำเทียบระดับน้ำทะเลปานกลาง (MSL)'),
   v22Card('🌅','จุดน้ำทะเลหนุนสูงสุด',unavailable,'ยังไม่มีข้อมูลสถานีน้ำทะเลที่มีจุดอ้างอิงและเวลาเปรียบเทียบกันได้'),
-  v22Card('💨','ลมและคลื่นแรงที่สุด',unavailable,'ยังไม่มีข้อมูลตรวจวัดลมและคลื่นทั่วประเทศที่เปรียบเทียบกันได้')
+  v22Card('💨','ลมแรงสุดในจุดตัวอย่าง','กำลังโหลด...','แบบจำลอง Open-Meteo · ยังไม่มีข้อมูลคลื่นตรวจวัดทั่วประเทศ')
  ];
- const header=`<div class="v22intro"><b>📍 สถานการณ์สำคัญทั่วประเทศ</b><small>อันดับจากข้อมูลที่ตรวจสอบได้เท่านั้น · ไม่ใช้ค่าพยากรณ์แทนการตรวจวัด</small></div>`;
- const draw=()=>{if(request!==v22OverviewRequest||openKey!=='แผนที่รวม')return;body.innerHTML=header+cards.join('')+`<div class="v22footer">🔄 <button type="button" id="v22Refresh">อัปเดตข้อมูล</button><div id="v22Status">ข้อมูลแสดงตามเวลาตรวจวัดของแต่ละแหล่ง · รายการที่ไม่มีข้อมูลจะแสดงตามจริง</div></div>`;document.getElementById('v22Refresh').onclick=()=>v22GoHome();body.querySelectorAll('[data-v22lat]').forEach(b=>b.onclick=()=>{const lat=Number(b.dataset.v22lat),lon=Number(b.dataset.v22lon);if(Number.isFinite(lat)&&Number.isFinite(lon)){map.setView([lat,lon],10);L.popup().setLatLng([lat,lon]).setContent(v19Escape(b.dataset.v22name||'สถานีระดับน้ำ')).openOn(map);}});};
+ const header=`<div class="v22intro"><b>📍 สถานการณ์สำคัญทั่วประเทศ</b><small>ข้อมูลล่าสุดตามแหล่งที่ระบุ · ค่าจากแบบจำลองและสถานีตรวจวัดแยกกันชัดเจน</small></div>`;
+ const draw=()=>{if(request!==v22OverviewRequest||openKey!=='แผนที่รวม')return;body.innerHTML=header+cards.join('')+`<div class="v22footer">🔄 <button type="button" id="v22Refresh">อัปเดตข้อมูล</button><div id="v22Status">ตรวจสอบล่าสุด: ${new Date().toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} · รีเฟรชทุก 5 นาทีเมื่อเปิดหน้านี้</div></div>`;document.getElementById('v22Refresh').onclick=()=>v22GoHome();body.querySelectorAll('[data-v22lat]').forEach(b=>b.onclick=()=>{const lat=Number(b.dataset.v22lat),lon=Number(b.dataset.v22lon);if(Number.isFinite(lat)&&Number.isFinite(lon)){map.setView([lat,lon],10);L.popup().setLatLng([lat,lon]).setContent(v19Escape(b.dataset.v22name||'สถานีระดับน้ำ')).openOn(map);}});};
  draw();
  try{
   const ctrl=new AbortController();const timeout=setTimeout(()=>ctrl.abort(),6500);
@@ -618,9 +618,33 @@ async function v22LoadOverview(request){
    cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด',Number(top.levelMsl).toFixed(2)+' เมตร',`${top.name} · ${top.province||'ไม่ระบุจังหวัด'} · ${top.river||top.basin||'ไม่ระบุแม่น้ำ'} · เวลา ${top.observedAt} · สูงสุดตามค่าระดับ MSL (ไม่ใช่อันดับเสี่ยงน้ำท่วม)`,go);
   }else cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด',unavailable,'ไม่พบสถานีที่มีเวลาและระดับน้ำตรวจวัดภายใน 24 ชั่วโมงของข้อมูลล่าสุด');
  }catch(e){cards[2]=v22Card('🌊','ระดับน้ำในแม่น้ำสูงสุด','ไม่สามารถโหลดข้อมูล','ThaiWater: '+String(e.message));}
+ // V16: Independent feeds; a failed source must not block other cards.
+ const update=()=>draw();
+ const jobs=[
+  (async()=>{try{
+   const r=await fetch('/api/rain/current-areas',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);
+   const j=await r.json();if(!j.ok)throw Error(j.error||'ไม่พบข้อมูล');
+   const areas=Array.isArray(j.areas)?j.areas:[];
+   const top=areas.filter(x=>Number.isFinite(Number(x.precipitationMm))).sort((a,b)=>Number(b.precipitationMm)-Number(a.precipitationMm))[0];
+   cards[0]=top?v22Card('🌧️','ฝนสูงสุดในจุดตัวอย่าง',Number(top.precipitationMm).toFixed(1)+' มม.',`${top.district} · ${top.province} · เวลา ${top.time||j.updatedAt||'ไม่ระบุ'} · แบบจำลอง Open-Meteo จาก ${j.sampleCount||30} จุด ไม่ใช่ฝนตรวจวัดจริง`):v22Card('🌧️','ฝนสูงสุดในจุดตัวอย่าง','ไม่พบฝนในจุดตัวอย่าง',`Open-Meteo · ${j.sampleCount||30} จุด · ${j.updatedAt||'ไม่ระบุเวลา'} · ไม่ใช่ข้อมูลทุกจังหวัด`);
+   const topWind=areas.filter(x=>Number.isFinite(Number(x.windKmh))).sort((a,b)=>Number(b.windKmh)-Number(a.windKmh))[0];
+   // API areas lists only rainy points: never describe this as a national wind maximum.
+   cards[4]=topWind?v22Card('💨','ลมในจุดตัวอย่างที่มีฝน',Number(topWind.windKmh).toFixed(1)+' กม./ชม.',`${topWind.district} · ${topWind.province} · แบบจำลอง Open-Meteo · ไม่ใช่ลมแรงสุดทั่วประเทศ · ไม่มีค่าคลื่นตรวจวัด`):v22Card('💨','ลมและคลื่นแรงที่สุด',unavailable,'ไม่มีข้อมูลลมตรวจวัดทั่วประเทศที่เปรียบเทียบได้');
+  }catch(e){cards[0]=v22Card('🌧️','ฝนในจุดตัวอย่าง','โหลดข้อมูลไม่สำเร็จ',String(e.message));cards[4]=v22Card('💨','ลมและคลื่นแรงที่สุด',unavailable,'ยังไม่มีข้อมูลที่เปรียบเทียบได้');}update();})(),
+  (async()=>{try{
+   const r=await fetch('/api/flood/monitor',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);
+   const j=await r.json();if(!j.ok)throw Error(j.error||'ไม่มีข้อมูล');
+   const w=(Array.isArray(j.watchStations)?j.watchStations:[]).filter(x=>x.relativeToLatest==='recent');
+   const top=w.sort((a,b)=>Number(b.changeM||0)-Number(a.changeM||0))[0];
+   const go=top&&Number.isFinite(Number(top.lat))&&Number.isFinite(Number(top.lon))?`<button class="v22loc" data-v22lat="${Number(top.lat)}" data-v22lon="${Number(top.lon)}" data-v22name="${v19Escape(top.name||'สถานี')}">📍 ดูตำแหน่งบนแผนที่</button>`:'';
+   cards[1]=top?v22Card('🚩','สถานีระดับน้ำเพิ่มขึ้นมาก','+'+(Number(top.changeM)*100).toFixed(0)+' ซม.',`${top.name||'สถานี'} · ${top.province||'ไม่ระบุจังหวัด'} · ${top.observedAt||'ไม่ระบุเวลา'} · ${w.length} สถานีเข้าเกณฑ์เฝ้าระวัง (ไม่ใช่คำเตือนน้ำท่วม)`,go):v22Card('🚩','สถานีระดับน้ำเพิ่มขึ้นมาก','ไม่พบสถานีเข้าเกณฑ์',`ตรวจสอบ ${j.summary?.recentWithLevel||0} สถานีที่มีข้อมูลล่าสุด · ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม`);
+  }catch(e){cards[1]=v22Card('🚩','สถานีระดับน้ำเพิ่มขึ้นมาก','โหลดข้อมูลไม่สำเร็จ',String(e.message));}update();})()
+ ];
+ await Promise.allSettled(jobs);
  draw();
 }
 let openKey='';
+setInterval(()=>{if(openKey==='แผนที่รวม'&&document.visibilityState==='visible')v22LoadOverview(++v22OverviewRequest);},300000);
 window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loadRainV19();else if(openKey==='เรดาร์สภาพอากาศ')loadRadarWeather();};
 
 // V11: public historical weather model; does not fabricate flood alerts.
