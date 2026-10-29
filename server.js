@@ -378,6 +378,17 @@ app.get('/api/radar/tiles',async(req,res)=>{
  }catch(e){res.status(502).json({ok:false,error:e.message});}
 });
 
+// Serve browser tab icons from project root on Render (static middleware only serves /public).
+for (const iconFile of ['favicon.ico','favicon.png','favicon.svg','manifest.webmanifest']) {
+ app.get('/'+iconFile,(req,res)=>{
+  const candidates=[path.join(ROOT,'public',iconFile),path.join(ROOT,iconFile)];
+  const file=candidates.find(f=>fs.existsSync(f));
+  if(!file)return res.sendStatus(404);
+  res.set('Cache-Control','public, max-age=300');
+  res.sendFile(file);
+ });
+}
+
 app.get('/',(req,res)=>{const a=path.join(ROOT,'public','index.html'),b=path.join(ROOT,'index.html');const file=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!file)return res.status(404).json({ok:false,error:'index.html not found'});res.sendFile(file);});
 app.listen(PORT,'0.0.0.0',()=>console.log('Thai Flood Watch listening on '+PORT));
 

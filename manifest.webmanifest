@@ -1,1 +1,1 @@
-{"name": "Marine Weather by Tai Pond Pattani", "short_name": "Marine Weather", "start_url": "/", "display": "standalone", "background_color": "#03101d", "theme_color": "#03101d"}
+{"name": "Thai Flood Watch", "short_name": "Thai Flood Watch", "start_url": "./", "display": "standalone", "background_color": "#04101d", "theme_color": "#0a456b", "icons": [{"src": "./favicon.png", "sizes": "256x256", "type": "image/png"}]}
