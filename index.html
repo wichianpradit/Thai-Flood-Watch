@@ -122,6 +122,51 @@ body.v3-force-mobile .app{grid-template-columns:1fr;grid-template-rows:72px minm
 body.v3-force-mobile.v3-sheet-open .rightbar {overflow:hidden}
 body.v3-force-mobile #moduleBody {overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 
+
+/* V6 desktop + mobile scroll: one reliable scroll container per module */
+.rightbar {min-height:0}
+.rightbar > #dataViewCard {min-height:0!important;overflow:hidden!important;flex:1 1 0!important}
+#modulePanel[style*="display: block"],#modulePanel[style*="display:block"] {
+ display:block!important;
+ flex:1 1 auto!important;
+ height:100%!important;
+ max-height:100%!important;
+ min-height:0!important;
+ overflow-y:auto!important;
+ overflow-x:hidden!important;
+ overscroll-behavior-y:contain;
+ -webkit-overflow-scrolling:touch;
+ touch-action:pan-y;
+ scrollbar-width:thin;
+ scrollbar-color:#417ca3 #0a2135;
+}
+#modulePanel .moduleTop {
+ position:sticky;
+ top:-14px;
+ z-index:12;
+ background:#081d30;
+ padding:10px 2px;
+}
+#moduleBody {
+ height:auto!important;
+ min-height:0!important;
+ overflow:visible!important;
+ touch-action:auto!important;
+ padding-bottom:50px!important;
+}
+#dashboardOverview {max-height:100%;overflow-y:auto!important}
+@media(max-width:820px) {
+ body.v3-sheet-open .rightbar {min-height:0!important}
+ #modulePanel[style*="display: block"],#modulePanel[style*="display:block"] {
+  padding-bottom:calc(35px + env(safe-area-inset-bottom));
+ }
+ #modulePanel .moduleTop {top:-12px}
+}
+body.v3-force-mobile #modulePanel[style*="display: block"],
+body.v3-force-mobile #modulePanel[style*="display:block"] {overflow-y:auto!important}
+body.v3-force-desktop #modulePanel[style*="display: block"],
+body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!important}
+
 </style>
 </head>
 <body>
@@ -401,7 +446,7 @@ window.showCameraInRightPanel=function(c){
  const panel=document.getElementById('modulePanel'),overview=document.getElementById('dashboardOverview');
  const heading=document.getElementById('moduleTitle'),body=document.getElementById('moduleBody');
  if(!panel||!body)return;
- overview.style.display='none';panel.style.display='block';heading.textContent='📹 '+(c.name||'กล้อง CCTV');
+ overview.style.display='none';panel.style.display='block';panel.scrollTop=0;heading.textContent='📹 '+(c.name||'กล้อง CCTV');
  body.replaceChildren();
  const meta=document.createElement('div');meta.className='moduleNote';
  meta.textContent='จังหวัด: '+(c.province||'ไม่ระบุ')+' · หน่วยงาน: '+(c.provider||'ไม่ระบุ')+' · พิกัด: '+c.lat+', '+c.lon+' · ไม่ยืนยันสถานะ LIVE';body.append(meta);
@@ -468,7 +513,7 @@ function v22GoHome(){
  v22ResetLayers();openKey='แผนที่รวม';
  document.querySelectorAll('.nav').forEach((n,i)=>n.classList.toggle('active',i===0));
  if(map.getZoom()!==6 || map.getCenter().distanceTo(L.latLng(13.0,101.2))>300000)map.setView([13.0,101.2],6,{animate:false});
- dashboardOverview.style.display='none';panel.style.display='block';
+ dashboardOverview.style.display='none';panel.style.display='block';panel.scrollTop=0;
  title.textContent='🇹🇭 ภาพรวมสถานการณ์ประเทศไทย';
  body.innerHTML=note('กำลังตรวจสอบข้อมูลสถานการณ์จากแหล่งข้อมูลที่เชื่อมต่อ...');
  const request=++v22OverviewRequest;
@@ -507,7 +552,7 @@ function show(key){
  if(key==='ฝนปัจจุบัน'&&typeof window.setRainMapMode==='function')window.setRainMapMode(true);else if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  v21EnableRadar((key==='ฝนปัจจุบัน'&&rainV19Mode==='observed')||key==='เรดาร์สภาพอากาศ');
  if(key!=='พื้นที่เสี่ยงน้ำท่วม'&&key!=='ระดับน้ำในแม่น้ำ'){floodStationMarkers.clearLayers();clearRiverTrends();}
- openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
+ openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';panel.scrollTop=0;body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
  else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
  else if(key==='CCTV')body.innerHTML=note('📹 หมุดกล้อง CCTV ที่มีพิกัดจริงจะแสดงบนแผนที่ กดหมุดเพื่อเปิดภาพในช่องนี้ · ข้อมูลจาก ThaiWater และแหล่งที่เชื่อมต่อได้ · หากไม่พบหมุด หมายถึงยังไม่มีข้อมูลพิกัดหรือ API ไม่พร้อม')+grid([stat('กล้องบนแผนที่','ดูหมุด 📹','เฉพาะรายการที่มีพิกัด')]);
