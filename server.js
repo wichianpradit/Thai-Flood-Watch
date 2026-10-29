@@ -136,6 +136,23 @@ app.get('/api/water/stations',async(req,res)=>{
  res.json({ok:true,source:'ThaiWater public endpoint',kind:'observed-station-level',datum:'MSL',units:{level:'m',change:'m'},count:stations.length,fetchedAt:new Date(waterCache.at).toISOString(),stations});
  }catch(e){res.status(502).json({ok:false,error:e.message});}
 });
+// Observational screening only: no nationwide flood-risk or official warning inference.
+app.get('/api/flood/monitor',async(req,res)=>{
+ try{
+  const raw=await getWaterRaw();
+  const all=raw.waterlevel_data.data.map(normalizeWater);
+  const latest=all.reduce((m,s)=>Math.max(m,Date.parse(s.observedAt)||0),0);
+  const stations=all.map(s=>{
+   const t=Date.parse(s.observedAt)||0;
+   const ageHours=t&&latest?Math.round((latest-t)/3600000*10)/10:null;
+   const trend=s.changeM===null?'unknown':s.changeM>0?'rising':s.changeM<0?'falling':'steady';
+   return {...s,trend,ageHours,relativeToLatest:ageHours!==null&&ageHours<=24?'recent':'old-or-unknown'};
+  });
+  const recent=stations.filter(s=>s.relativeToLatest==='recent'&&s.levelMsl!==null);
+  const rising=recent.filter(s=>s.trend==='rising').sort((a,b)=>b.changeM-a.changeM);
+  res.json({ok:true,source:'ThaiWater public endpoint',classification:'station-observation-screening-not-flood-warning',datum:'MSL',fetchedAt:new Date(waterCache.at).toISOString(),latestObservationAt:latest?new Date(latest).toISOString():null,summary:{total:stations.length,recentWithLevel:recent.length,rising:rising.length,falling:recent.filter(s=>s.trend==='falling').length,steady:recent.filter(s=>s.trend==='steady').length,unknown:recent.filter(s=>s.trend==='unknown').length},stations,risingStations:rising.slice(0,100)});
+ }catch(e){res.status(502).json({ok:false,error:e.message});}
+});
 app.get('/api/water/stations/raw',async(req,res)=>{try{res.json({ok:true,source:'ThaiWater public endpoint',raw:true,data:await getWaterRaw()});}catch(e){res.status(502).json({ok:false,error:e.message});}});
 // Describes which integrations are actually configured; never presents missing feeds as live.
 // ThaiWater camera directory. Stream availability is verified by the browser player,

@@ -1,11 +1,10 @@
 services:
   - type: web
-    name: marine-weather-mobile
+    name: thai-flood-watch
     runtime: node
-    plan: free
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: TMD_PAT
+      - key: TMD_TOKEN
         sync: false
