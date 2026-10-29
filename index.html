@@ -410,7 +410,7 @@ function v22ResetLayers(){
  // Switching panels must not recompute all map forecast markers.
  if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);
- v21EnableRadar(false);floodFlagLayer.clearLayers();
+ v21EnableRadar(false);floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();
 }
 function v22GoHome(){
  v22ResetLayers();openKey='แผนที่รวม';
@@ -454,6 +454,7 @@ function show(key){
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
  if(key==='ฝนปัจจุบัน'&&typeof window.setRainMapMode==='function')window.setRainMapMode(true);else if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  v21EnableRadar((key==='ฝนปัจจุบัน'&&rainV19Mode==='observed')||key==='เรดาร์สภาพอากาศ');
+ if(key!=='พื้นที่เสี่ยงน้ำท่วม')floodStationMarkers.clearLayers();
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
  else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
@@ -501,27 +502,51 @@ function flagForRain(rain){return flagLevels.find(l=>rain>=l.min&&rain<l.max)||n
 const floodFlagLayer=L.layerGroup().addTo(map);
 function flagLegendHtml(){return '<div class="flagLegend">'+flagLevels.map(l=>`<div class="flagRow"><span class="flagIcon" style="background:${l.color}">⚑</span><div><b>ธง${l.name} — ${l.status}</b><small>${l.max===Infinity?'ตั้งแต่ '+l.min+' มม./ชั่วโมง':l.min+' ถึงน้อยกว่า '+l.max+' มม./ชั่วโมง'}</small></div></div>`).join('')+'</div>';}
 let floodMonitorStations=[];
+const floodStationMarkers=L.layerGroup().addTo(map);
+const floodStationById=new Map();
+function floodStationKey(s){return String(s.code||s.id||[s.name,s.lat,s.lon].join('|'));}
+function floodTrendColor(s){return s.trend==='rising'?'#ff9b43':s.trend==='falling'?'#4fb7ff':s.trend==='steady'?'#43c98b':'#9baabb';}
+function floodStationMap(filter=''){
+ floodStationMarkers.clearLayers();floodStationById.clear();
+ const q=filter.trim().toLocaleLowerCase('th');let count=0;
+ for(const s of floodMonitorStations){
+  if(s.relativeToLatest!=='recent'||s.levelMsl===null||s.lat===null||s.lon===null||s.lat===''||s.lon===''||!Number.isFinite(Number(s.lat))||!Number.isFinite(Number(s.lon)))continue;
+  const lat=Number(s.lat),lon=Number(s.lon);
+  if(lat<-90||lat>90||lon<-180||lon>180)continue;
+  if(q&&![s.name,s.province,s.district,s.river,s.basin].some(x=>String(x||'').toLocaleLowerCase('th').includes(q)))continue;
+  const color=floodTrendColor(s);
+  const marker=L.circleMarker([lat,lon],{radius:s.trend==='rising'?7:5,color:'#092b40',weight:1.5,fillColor:color,fillOpacity:.88});
+  const delta=s.changeM===null?'ไม่มีค่าเปรียบเทียบ':`${s.changeM>0?'+':''}${Number(s.changeM).toFixed(2)} ม.`;
+  marker.bindPopup(`<b>${escapeWater(s.name||'สถานีตรวจวัด')}</b><br>${escapeWater(s.province||'ไม่ระบุจังหวัด')}<br>ระดับน้ำ ${Number(s.levelMsl).toFixed(2)} ม. MSL<br>การเปลี่ยนแปลง ${escapeWater(delta)}<br>ตรวจวัด ${escapeWater(s.observedAt||'ไม่ระบุ')}<br><small>ข้อมูล ThaiWater · ไม่ใช่ระดับเตือนภัยน้ำท่วม</small>`);
+  marker.addTo(floodStationMarkers);floodStationById.set(floodStationKey(s),marker);count++;
+ }
+ return count;
+}
+function floodFocusStation(s){const marker=floodStationById.get(floodStationKey(s));if(marker){map.setView(marker.getLatLng(),11);marker.openPopup();}else if(s.lat!==null&&s.lon!==null&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lon)))map.setView([Number(s.lat),Number(s.lon)],11);}
+
 function floodMonitorRender(filter=''){
  const q=filter.trim().toLocaleLowerCase('th');
  const list=floodMonitorStations.filter(s=>[s.name,s.province,s.district,s.river,s.basin].some(x=>String(x||'').toLocaleLowerCase('th').includes(q)));
  const rising=list.filter(s=>s.relativeToLatest==='recent'&&s.trend==='rising').sort((a,b)=>b.changeM-a.changeM);
+ const mapped=floodStationMap(filter);
  const recent=list.filter(s=>s.relativeToLatest==='recent'&&s.levelMsl!==null);
  const selection=rising.slice(0,60).map((s,i)=>{
-  const coords=s.lat!==null&&s.lon!==null?`<button type="button" data-watch="${i}" style="margin-top:7px;padding:6px 10px;border-radius:8px">ดูบนแผนที่</button>`:'';
+  const coords=s.lat!==null&&s.lon!==null&&s.lat!==''&&s.lon!==''?`<button type="button" data-watch="${i}" style="margin-top:7px;padding:6px 10px;border-radius:8px">ดูบนแผนที่</button>`:'';
   return `<div class="item"><b>${escapeWater(s.name)}</b><br><small>${escapeWater(s.province||'ไม่ระบุจังหวัด')} · ${escapeWater(s.river||s.basin||'ไม่ระบุลำน้ำ')}</small><div style="font-size:19px;color:#8fe2ff">${Number(s.levelMsl).toFixed(2)} ม. MSL <span style="font-size:13px;color:#f9bc69">↑ +${Number(s.changeM).toFixed(2)} ม.</span></div><small>ตรวจวัด: ${escapeWater(s.observedAt||'ไม่ระบุ')} · เทียบค่าก่อนหน้าที่ต้นทางให้มา</small>${coords}</div>`;
  }).join('');
  body.innerHTML=note('<b>🌊 เฝ้าติดตามสถานีระดับน้ำที่มีแนวโน้มเพิ่มขึ้น</b> · ข้อมูลตรวจวัด ThaiWater ไม่ใช่ประกาศเตือนภัยหรือแผนที่น้ำท่วมจริง · <b>ระดับน้ำ MSL เปรียบเทียบข้ามสถานีเพื่อจัดอันดับความเสี่ยงไม่ได้</b> และการเพิ่มขึ้นของระดับน้ำไม่ยืนยันว่าจะเกิดน้ำท่วม')+
  grid([stat('สถานีข้อมูลล่าสุด',recent.length,'ภายใน 24 ชม. จากเวลาล่าสุดในชุดข้อมูล'),stat('ระดับน้ำเพิ่มขึ้น',rising.length,'เทียบค่าก่อนหน้า')])+
+ note(`🗺️ แสดงสถานีบนแผนที่ ${mapped} จุด (เฉพาะสถานีที่มีพิกัดและข้อมูลล่าสุด) · 🟠 เพิ่มขึ้น · 🔵 ลดลง · 🟢 คงที่ · ⚪ ไม่ทราบแนวโน้ม · <b>สีไม่ใช่ระดับความเสี่ยงน้ำท่วม</b>`)+
  '<label for="floodMonitorSearch" style="display:block;margin:12px 0 5px">ค้นหาจังหวัด สถานี หรือแม่น้ำ</label>'+
  `<input id="floodMonitorSearch" type="search" placeholder="เช่น ปัตตานี ยะลา เจ้าพระยา" value="${escapeWater(filter)}" style="box-sizing:border-box;width:100%;padding:11px;border-radius:9px;background:#102e43;color:white;border:1px solid #3b7899">`+
  '<h3 style="margin:14px 0 8px">สถานีที่ระดับน้ำเพิ่มขึ้น (เรียงตามการเปลี่ยนแปลง)</h3>'+
  (selection||note('ไม่พบสถานีระดับน้ำเพิ่มขึ้นที่ตรงกับเงื่อนไข'))+
  note('หากต้องการแจ้งเตือนภัยน้ำท่วมจริง จำเป็นต้องมีเกณฑ์วิกฤตเฉพาะสถานีหรือประกาศหน่วยงานเพิ่มเติม · ข้อมูลเก่ากว่า 24 ชม. เมื่อเทียบกับเวลาล่าสุดในชุดข้อมูลไม่ถูกนำมาจัดอันดับ');
  const input=document.getElementById('floodMonitorSearch');if(input){input.addEventListener('input',e=>floodMonitorRender(e.target.value));if(filter){input.focus();input.setSelectionRange(filter.length,filter.length);}}
- body.querySelectorAll('[data-watch]').forEach(btn=>btn.addEventListener('click',()=>{const s=rising[Number(btn.dataset.watch)];if(s&&s.lat!==null&&s.lon!==null)map.setView([s.lat,s.lon],11);}));
+ body.querySelectorAll('[data-watch]').forEach(btn=>btn.addEventListener('click',()=>{const s=rising[Number(btn.dataset.watch)];if(s)floodFocusStation(s);}));
 }
 async function loadVerifiedRisk(){
- floodFlagLayer.clearLayers();body.innerHTML=note('กำลังโหลดข้อมูลสถานีระดับน้ำจาก ThaiWater...');
+ floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();body.innerHTML=note('กำลังโหลดข้อมูลสถานีระดับน้ำจาก ThaiWater...');
  try{const j=await getJSON('/api/flood/monitor');if(openKey!=='พื้นที่เสี่ยงน้ำท่วม')return;
   if(!Array.isArray(j.stations))throw Error('รูปแบบข้อมูลไม่ถูกต้อง');
   floodMonitorStations=j.stations;floodMonitorRender();
@@ -599,7 +624,7 @@ async function loadWater(){
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
 document.getElementById('closeModule').addEventListener('click',v22GoHome);
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){v22GoHome();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม')floodFlagLayer.clearLayers();show(keys[i]);}));
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){v22GoHome();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม'){floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();}show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 // Open national overview once all module state and handlers are initialized.
 try{v22GoHome();}catch(e){console.error('Overview init:',e);const b=document.getElementById('moduleBody');if(b)b.textContent='โหลดสรุปไม่ได้ กรุณาเลือกเมนูด้านซ้าย';}
