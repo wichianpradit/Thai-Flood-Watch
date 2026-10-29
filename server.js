@@ -153,6 +153,29 @@ app.get('/api/flood/monitor',async(req,res)=>{
   res.json({ok:true,source:'ThaiWater public endpoint',classification:'station-observation-screening-not-flood-warning',datum:'MSL',fetchedAt:new Date(waterCache.at).toISOString(),latestObservationAt:latest?new Date(latest).toISOString():null,summary:{total:stations.length,recentWithLevel:recent.length,rising:rising.length,falling:recent.filter(s=>s.trend==='falling').length,steady:recent.filter(s=>s.trend==='steady').length,unknown:recent.filter(s=>s.trend==='unknown').length},stations,risingStations:rising.slice(0,100)});
  }catch(e){res.status(502).json({ok:false,error:e.message});}
 });
+// OpenStreetMap river geometry near a measured ThaiWater station. Geometry is NOT an inundation map.
+const riverGeometryCache=new Map();
+app.get('/api/rivers/near-station',async(req,res)=>{
+ const lat=finiteNumber(req.query.lat),lon=finiteNumber(req.query.lon);
+ if(lat===null||lon===null||lat<5||lat>21||lon<97||lon>106)return res.status(400).json({ok:false,error:'พิกัดอยู่นอกพื้นที่ประเทศไทย'});
+ const river=String(req.query.river||'').trim().slice(0,100);
+ const key=`${lat.toFixed(3)}:${lon.toFixed(3)}:${river}`;
+ const old=riverGeometryCache.get(key);
+ if(old&&Date.now()-old.at<12*3600000)return res.json(old.data);
+ // Restrict the lookup to a 7-km radius to avoid implying a whole river is in the same condition.
+ const query=`[out:json][timeout:12];way(around:7000,${lat},${lon})[waterway~"^(river|stream|canal)$"];out geom 120;`;
+ try{
+  const r=await fetch('https://overpass.kumi.systems/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({data:query}),signal:AbortSignal.timeout(16000)});
+  if(!r.ok)throw Error('OpenStreetMap Overpass HTTP '+r.status);
+  const j=await r.json();
+  const ways=(j.elements||[]).filter(w=>Array.isArray(w.geometry)&&w.geometry.length>=2).map(w=>({id:w.id,name:String(w.tags?.name||w.tags?.['name:th']||''),type:w.tags?.waterway||'river',coordinates:w.geometry.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon)).slice(0,1500).map(x=>[x.lat,x.lon])}));
+  // Named matching first; if no matching name exists, show only nearby geometry with explicit uncertainty.
+  const match=river?ways.filter(w=>w.name&&(w.name.includes(river)||river.includes(w.name))):[];
+  const segments=(match.length?match:ways).slice(0,70);
+  const data={ok:true,source:'OpenStreetMap contributors via Overpass',geometryOnly:true,matchedRiverName:match.length>0,searchRadiusKm:7,river,segments};
+  if(riverGeometryCache.size>150)riverGeometryCache.clear();riverGeometryCache.set(key,{at:Date.now(),data});res.json(data);
+ }catch(e){res.status(502).json({ok:false,error:'ไม่สามารถโหลดแนวลำน้ำจาก OpenStreetMap: '+e.message});}
+});
 app.get('/api/water/stations/raw',async(req,res)=>{try{res.json({ok:true,source:'ThaiWater public endpoint',raw:true,data:await getWaterRaw()});}catch(e){res.status(502).json({ok:false,error:e.message});}});
 // Describes which integrations are actually configured; never presents missing feeds as live.
 // ThaiWater camera directory. Stream availability is verified by the browser player,

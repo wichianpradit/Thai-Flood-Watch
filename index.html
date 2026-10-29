@@ -441,7 +441,7 @@ function v22ResetLayers(){
  // Switching panels must not recompute all map forecast markers.
  if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);
- v21EnableRadar(false);floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();
+ v21EnableRadar(false);floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();clearRiverTrends();
 }
 function v22GoHome(){
  v22ResetLayers();openKey='แผนที่รวม';
@@ -485,7 +485,7 @@ function show(key){
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
  if(key==='ฝนปัจจุบัน'&&typeof window.setRainMapMode==='function')window.setRainMapMode(true);else if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  v21EnableRadar((key==='ฝนปัจจุบัน'&&rainV19Mode==='observed')||key==='เรดาร์สภาพอากาศ');
- if(key!=='พื้นที่เสี่ยงน้ำท่วม')floodStationMarkers.clearLayers();
+ if(key!=='พื้นที่เสี่ยงน้ำท่วม'&&key!=='ระดับน้ำในแม่น้ำ'){floodStationMarkers.clearLayers();clearRiverTrends();}
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
  else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
@@ -535,6 +535,34 @@ function flagLegendHtml(){return '<div class="flagLegend">'+flagLevels.map(l=>`<
 let floodMonitorStations=[];
 const floodStationMarkers=L.layerGroup().addTo(map);
 const floodStationById=new Map();
+// V4: river corridors are map geometry only, colored by a nearby station's observed trend.
+const riverTrendLayer=L.layerGroup().addTo(map);
+let riverLoadGeneration=0;
+const riverDrawn=new Set();
+function clearRiverTrends(){riverLoadGeneration++;riverTrendLayer.clearLayers();riverDrawn.clear();}
+async function drawRiverForStation(s,gen){
+ if(!s||s.lat===null||s.lon===null||!Number.isFinite(Number(s.lat))||!Number.isFinite(Number(s.lon)))return;
+ const key=floodStationKey(s);if(riverDrawn.has(key))return;riverDrawn.add(key);
+ try{
+  const r=await fetch('/api/rivers/near-station?'+new URLSearchParams({lat:s.lat,lon:s.lon,river:s.river||''}),{cache:'default'});
+  const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'ไม่พบแนวลำน้ำ');
+  if(gen!==riverLoadGeneration||!['พื้นที่เสี่ยงน้ำท่วม','ระดับน้ำในแม่น้ำ'].includes(openKey))return;
+  const color=floodTrendColor(s);
+  for(const seg of j.segments||[]){
+   if(!Array.isArray(seg.coordinates)||seg.coordinates.length<2)continue;
+   const line=L.polyline(seg.coordinates,{color,weight:5,opacity:.78,interactive:true});
+   const label=seg.name||s.river||'ลำน้ำใกล้สถานี';
+   line.bindPopup(`<b>${escapeWater(label)}</b><br>สถานีอ้างอิง: ${escapeWater(s.name)}<br>ระดับน้ำ ${s.levelMsl===null?'ไม่มีข้อมูล':Number(s.levelMsl).toFixed(2)+' ม. MSL'}<br>แนวโน้ม: ${s.trend==='rising'?'เพิ่มขึ้น':s.trend==='falling'?'ลดลง':s.trend==='steady'?'คงที่':'ไม่ทราบ'}<br><small>เส้นจาก OpenStreetMap เฉพาะใกล้สถานี (รัศมี 7 กม.) · ${j.matchedRiverName?'จับคู่ชื่อแม่น้ำได้':'ไม่ยืนยันว่าเป็นแม่น้ำเดียวกัน'} · ไม่ใช่แผนที่น้ำท่วมหรือประกาศเตือนภัย</small>`);
+   line.addTo(riverTrendLayer);
+  }
+ }catch(e){console.warn('River geometry unavailable:',e.message);}
+}
+function showRiverTrends(stations){
+ clearRiverTrends();const gen=riverLoadGeneration;
+ const valid=stations.filter(s=>s.relativeToLatest==='recent'&&s.trend==='rising'&&s.lat!==null&&s.lon!==null&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lon)));
+ // Limit remote geometry requests; users can click a station for a detailed corridor.
+ valid.slice(0,4).forEach(s=>drawRiverForStation(s,gen));
+}
 function floodStationKey(s){return String(s.code||s.id||[s.name,s.lat,s.lon].join('|'));}
 function floodTrendColor(s){return s.trend==='rising'?'#ff9b43':s.trend==='falling'?'#4fb7ff':s.trend==='steady'?'#43c98b':'#9baabb';}
 function floodStationMap(filter=''){
@@ -553,7 +581,7 @@ function floodStationMap(filter=''){
  }
  return count;
 }
-function floodFocusStation(s){const marker=floodStationById.get(floodStationKey(s));if(marker){map.setView(marker.getLatLng(),11);marker.openPopup();}else if(s.lat!==null&&s.lon!==null&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lon)))map.setView([Number(s.lat),Number(s.lon)],11);}
+function floodFocusStation(s){drawRiverForStation(s,riverLoadGeneration);const marker=floodStationById.get(floodStationKey(s));if(marker){map.setView(marker.getLatLng(),11);marker.openPopup();}else if(s.lat!==null&&s.lon!==null&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lon)))map.setView([Number(s.lat),Number(s.lon)],11);}
 
 function floodMonitorRender(filter=''){
  const q=filter.trim().toLocaleLowerCase('th');
@@ -567,7 +595,7 @@ function floodMonitorRender(filter=''){
  }).join('');
  body.innerHTML=note('<b>🌊 เฝ้าติดตามสถานีระดับน้ำที่มีแนวโน้มเพิ่มขึ้น</b> · ข้อมูลตรวจวัด ThaiWater ไม่ใช่ประกาศเตือนภัยหรือแผนที่น้ำท่วมจริง · <b>ระดับน้ำ MSL เปรียบเทียบข้ามสถานีเพื่อจัดอันดับความเสี่ยงไม่ได้</b> และการเพิ่มขึ้นของระดับน้ำไม่ยืนยันว่าจะเกิดน้ำท่วม')+
  grid([stat('สถานีข้อมูลล่าสุด',recent.length,'ภายใน 24 ชม. จากเวลาล่าสุดในชุดข้อมูล'),stat('ระดับน้ำเพิ่มขึ้น',rising.length,'เทียบค่าก่อนหน้า')])+
- note(`🗺️ แสดงสถานีบนแผนที่ ${mapped} จุด (เฉพาะสถานีที่มีพิกัดและข้อมูลล่าสุด) · 🟠 เพิ่มขึ้น · 🔵 ลดลง · 🟢 คงที่ · ⚪ ไม่ทราบแนวโน้ม · <b>สีไม่ใช่ระดับความเสี่ยงน้ำท่วม</b>`)+
+ note(`🗺️ เส้นสีตามแนวลำน้ำใกล้สถานีที่ระดับน้ำเพิ่มขึ้น (OpenStreetMap, ไม่ใช่แนวน้ำท่วม) · แสดงสถานีบนแผนที่ ${mapped} จุด (เฉพาะสถานีที่มีพิกัดและข้อมูลล่าสุด) · 🟠 เพิ่มขึ้น · 🔵 ลดลง · 🟢 คงที่ · ⚪ ไม่ทราบแนวโน้ม · <b>สีไม่ใช่ระดับความเสี่ยงน้ำท่วม</b>`)+
  '<label for="floodMonitorSearch" style="display:block;margin:12px 0 5px">ค้นหาจังหวัด สถานี หรือแม่น้ำ</label>'+
  `<input id="floodMonitorSearch" type="search" placeholder="เช่น ปัตตานี ยะลา เจ้าพระยา" value="${escapeWater(filter)}" style="box-sizing:border-box;width:100%;padding:11px;border-radius:9px;background:#102e43;color:white;border:1px solid #3b7899">`+
  '<h3 style="margin:14px 0 8px">สถานีที่ระดับน้ำเพิ่มขึ้น (เรียงตามการเปลี่ยนแปลง)</h3>'+
@@ -580,7 +608,7 @@ async function loadVerifiedRisk(){
  floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();body.innerHTML=note('กำลังโหลดข้อมูลสถานีระดับน้ำจาก ThaiWater...');
  try{const j=await getJSON('/api/flood/monitor');if(openKey!=='พื้นที่เสี่ยงน้ำท่วม')return;
   if(!Array.isArray(j.stations))throw Error('รูปแบบข้อมูลไม่ถูกต้อง');
-  floodMonitorStations=j.stations;floodMonitorRender();
+  floodMonitorStations=j.stations;floodMonitorRender();showRiverTrends(floodMonitorStations);
  }catch(e){if(openKey==='พื้นที่เสี่ยงน้ำท่วม')body.innerHTML=note('ไม่สามารถโหลดข้อมูลระดับน้ำ: '+escapeWater(e.message));}
 }
 async function loadFloodFlags(){
@@ -650,12 +678,12 @@ async function loadWater(){
   const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'API ไม่พร้อม');
   if(openKey!=='ระดับน้ำในแม่น้ำ')return;
   if(!Array.isArray(j.stations))throw new Error('รูปแบบข้อมูลสถานีไม่ถูกต้อง');
-  waterStations=j.stations;renderWater();
+  waterStations=j.stations;renderWater();showRiverTrends(waterStations.map(s=>({...s,trend:s.changeM===null?'unknown':s.changeM>0?'rising':s.changeM<0?'falling':'steady',relativeToLatest:'recent'})));
  }catch(e){if(openKey==='ระดับน้ำในแม่น้ำ')body.innerHTML=note('ไม่สามารถโหลดสถานีระดับน้ำ: '+escapeWater(e.message));}
 }
 body.addEventListener('input',e=>{if(e.target.id==='waterSearch'&&openKey==='ระดับน้ำในแม่น้ำ')renderWater(e.target.value);});
 document.getElementById('closeModule').addEventListener('click',v22GoHome);
-document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){v22GoHome();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม'){floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();}show(keys[i]);}));
+document.querySelectorAll('.nav').forEach((n,i)=>n.addEventListener('click',()=>{if(i===0){v22GoHome();return;}if(keys[i]!=='พื้นที่เสี่ยงน้ำท่วม'){floodFlagLayer.clearLayers();floodStationMarkers.clearLayers();clearRiverTrends();}show(keys[i]);}));
 document.querySelectorAll('.map-tabs button').forEach((b,i)=>b.addEventListener('click',()=>{if(i===4)show('ลมและคลื่นทะเล');}));
 // Open national overview once all module state and handlers are initialized.
 try{v22GoHome();}catch(e){console.error('Overview init:',e);const b=document.getElementById('moduleBody');if(b)b.textContent='โหลดสรุปไม่ได้ กรุณาเลือกเมนูด้านซ้าย';}
