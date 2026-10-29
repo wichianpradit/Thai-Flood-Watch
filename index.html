@@ -195,6 +195,7 @@ body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!impo
   </div>
  </div>
  <div class="headstats">
+  <button id="visitorBadge" type="button" title="จำนวนแท็บที่ออนไลน์ใน 2 นาทีล่าสุด · คลิกเพื่อดูสถิติผู้ดูแล" style="background:#0d394e;border:1px solid #247f9c;border-radius:10px;color:#b9f6de;padding:7px 10px;cursor:pointer;font-weight:700;white-space:nowrap">🟢 ออนไลน์ <span id="visitorCount">—</span></button>
   <div class="hbox"><b>☁️ <span id="temp">--°C</span></b><small>สภาพอากาศ</small></div>
   <div class="hbox"><b id="date">--</b><small><span id="clock">--:--</span> น. &nbsp; 🔴 LIVE</small></div>
   <button class="round">🔔</button><button class="round">⚙</button><button class="round">☰</button>
@@ -903,6 +904,23 @@ try{v22GoHome();}catch(e){console.error('Overview init:',e);const b=document.get
  const overview=document.querySelector('#v3BottomNav button[data-nav="0"]');if(overview)overview.classList.add('active');
  window.addEventListener('resize',apply,{passive:true});window.addEventListener('orientationchange',()=>setTimeout(apply,250));
  apply();
+})();
+</script>
+
+<script>
+// V13: each browser tab has an ephemeral random session ID; no identifying information sent.
+(()=>{
+ const id=(globalThis.crypto?.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.floor(Math.random()*16);return(c==='x'?r:(r&3|8)).toString(16)}));
+ const count=document.getElementById('visitorCount');
+ async function ping(){if(document.hidden)return;try{const r=await fetch('/api/visitors/ping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id}),cache:'no-store'});if(!r.ok)throw Error();const j=await r.json();count.textContent=String(j.online);}catch{count.textContent='—';}}
+ ping();setInterval(ping,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)ping();});
+ document.getElementById('visitorBadge').addEventListener('click',async()=>{
+  const token=prompt('รหัสผู้ดูแลสำหรับดูสถิติออนไลน์ (VISITOR_ADMIN_TOKEN)');if(!token)return;
+  try{const r=await fetch('/api/visitors/admin',{headers:{'X-Visitor-Admin-Token':token},cache:'no-store'});const j=await r.json();if(!r.ok)throw Error('รหัสไม่ถูกต้อง หรือยังไม่ได้ตั้ง VISITOR_ADMIN_TOKEN บน Render');
+   const rows=j.hourly.slice(-24).map(x=>x.hour+' : '+x.newSessions+' เซสชันใหม่').join('\n');
+   alert('📊 สถิติ Thai Flood Watch\nออนไลน์ล่าสุด: '+j.online+' แท็บ\nนับในช่วง: '+j.windowSeconds+' วินาที\nเริ่มนับเมื่อเซิร์ฟเวอร์เปิด: '+new Date(j.serverStartedAt).toLocaleString('th-TH')+'\n\nเซสชันใหม่รายชั่วโมง (โดยประมาณ):\n'+(rows||'ยังไม่มีข้อมูล')+'\n\nหมายเหตุ: รีสตาร์ตเซิร์ฟเวอร์แล้วตัวเลขเริ่มใหม่');
+  }catch(e){alert(e.message);}
+ });
 })();
 </script>
 </body>

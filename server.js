@@ -2,12 +2,42 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 dotenv.config();
 const app=express();
 const PORT=process.env.PORT||3000;
 const ROOT=process.cwd();
 app.use(express.json());
 app.use(express.static(path.join(ROOT,'public')));
+
+// V13: privacy-preserving active visitor sessions, held in RAM only.
+// Active means a tab pinged within the past 120 seconds. No IP or fingerprint stored.
+const visitorSessions=new Map();
+const visitorHourly=new Map();
+const VISITOR_TTL=120000;
+const VISITOR_START=Date.now();
+function visitorCleanup(){const now=Date.now();for(const [id,t] of visitorSessions){if(now-t>VISITOR_TTL)visitorSessions.delete(id);}if(visitorSessions.size>20000){const keys=[...visitorSessions.keys()].slice(0,visitorSessions.size-20000);keys.forEach(k=>visitorSessions.delete(k));}}
+function visitorHour(){return new Date().toISOString().slice(0,13)+':00Z';}
+app.post('/api/visitors/ping',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ const id=req.body?.id;
+ if(typeof id!=='string'||!/^[a-f0-9-]{36}$/.test(id))return res.status(400).json({ok:false,error:'Invalid session ID'});
+ visitorCleanup();const first=!visitorSessions.has(id);
+ visitorSessions.set(id,Date.now());
+ if(first){const hour=visitorHour();visitorHourly.set(hour,(visitorHourly.get(hour)||0)+1);if(visitorHourly.size>168)visitorHourly.delete(visitorHourly.keys().next().value);}
+ res.json({ok:true,online:visitorSessions.size,windowSeconds:120,asOf:new Date().toISOString()});
+});
+app.get('/api/visitors/online',(req,res)=>{visitorCleanup();res.set('Cache-Control','no-store');res.json({ok:true,online:visitorSessions.size,windowSeconds:120,asOf:new Date().toISOString()});});
+app.get('/api/visitors/admin',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ const expected=process.env.VISITOR_ADMIN_TOKEN||'';
+ const actual=req.get('X-Visitor-Admin-Token')||'';
+ const a=Buffer.from(actual),b=Buffer.from(expected);
+ if(!expected||a.length!==b.length||!crypto.timingSafeEqual(a,b))return res.status(401).json({ok:false,error:'Unauthorized: configure VISITOR_ADMIN_TOKEN on Render'});
+ visitorCleanup();
+ res.json({ok:true,online:visitorSessions.size,windowSeconds:120,serverStartedAt:new Date(VISITOR_START).toISOString(),hourly:[...visitorHourly].map(([hour,newSessions])=>({hour,newSessions})),note:'RAM counters only; resets on server restart. New sessions per hour are approximate, not unique people.'});
+});
+
 const TMD_URL='https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/at';
 const FIELDS='rain,tc,rh,ws10m,wd10m';
 // Rate-limit protection: cache, deduplicate in-flight requests, and honor TMD cooldown.
