@@ -697,6 +697,31 @@ function v11Export(){
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Thai_Flood_Watch_History_'+v11Loc.lat.toFixed(3)+'_'+v11Loc.lon.toFixed(3)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
 }
 
+
+// V17 sea-level dashboard: do not present old, unverified, or different-datum measurements as current.
+async function v17LoadSea(){
+ body.innerHTML=note('กำลังตรวจสอบสถานีตรวจวัดระดับน้ำทะเลและเวลาข้อมูลล่าสุด...');
+ const safe=v19Escape;
+ const results=await Promise.allSettled([fetch('/api/sea/stations',{cache:'no-store'}).then(r=>r.json()),fetch('/api/sea/levels',{cache:'no-store'}).then(r=>r.json())]);
+ if(openKey!=='น้ำทะเลหนุน')return;
+ const loc=results[0].status==='fulfilled'&&results[0].value.ok?results[0].value:null;
+ const levels=results[1].status==='fulfilled'&&results[1].value.ok?results[1].value:null;
+ let html='<div class="moduleNote">🌊 สถานีกรมทรัพยากรธรณี (DMR) · แยกตำแหน่งสถานีออกจากค่าตรวจวัดจริง · รีเฟรชทุก 5 นาทีเมื่อเปิดเมนู</div>';
+ if(!loc)html+=note('ไม่สามารถโหลดพิกัดสถานีจาก DMR ได้ในขณะนี้');
+ else html+=`<div class="moduleStat"><small>สถานีที่พบ</small><strong>${loc.stations.length} จุด</strong><small>พิกัดจาก DMR · ไม่ใช่ระดับน้ำทะเลสด</small></div>`;
+ if(!levels||!levels.stations.length)html+=note('ยังไม่มีค่าระดับน้ำทะเลที่ยืนยันได้จาก API สด จึงไม่แสดงตัวเลขสมมุติหรือประกาศเตือนน้ำทะเลหนุน');
+ else for(const st of levels.stations){
+  const readings=st.readings||[],last=readings.at(-1),previous=readings.at(-2);
+  const age=last?(Date.now()-Date.parse(last.time))/60000:Infinity,live=age>=0&&age<=60;
+  const delta=last&&previous?last.level-previous.level:null;
+  html+=`<div class="moduleStat"><small>${safe(st.name)} · ${safe(st.source)}</small><strong>${last?safe(last.level.toFixed(3))+' เมตร':'ไม่มีข้อมูล'}</strong><small>${safe(st.datum)} · ${last?safe(new Date(last.time).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})):'ไม่ระบุเวลา'} · ${live?'ข้อมูลภายใน 60 นาที':'ข้อมูลเก่า / ยังไม่สด'}</small><small>${delta===null?'แนวโน้ม: ต้องมีอย่างน้อย 2 ค่า':'เปลี่ยนแปลง '+(delta>=0?'+':'')+delta.toFixed(3)+' ม. จากค่าก่อนหน้า'}</small></div>`;
+ }
+ if(loc&&loc.stations.length){html+='<h3>📍 รายชื่อสถานี</h3><div style="max-height:250px;overflow:auto">'+loc.stations.map(x=>`<div style="padding:7px 0;border-bottom:1px solid #26485d">${safe(x.name)} <small style="color:#9cb4c7">(${x.lat.toFixed(4)}, ${x.lon.toFixed(4)})</small></div>`).join('')+'</div>';}
+ html+=note('ข้อควรระวัง: ห้ามเปรียบเทียบระดับน้ำต่างสถานีหากใช้หมุดอ้างอิง (datum) ไม่ตรงกัน และห้ามใช้สถานะนี้แทนประกาศเตือนภัยทางการ');
+ body.innerHTML=html;
+}
+setInterval(()=>{if(typeof openKey!=='undefined'&&openKey==='น้ำทะเลหนุน')v17LoadSea();},300000);
+
 function show(key){
  v10ShowControls(false);v10Generation++;
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
@@ -710,7 +735,7 @@ function show(key){
  else if(key==='CCTV'){body.innerHTML=note('📹 กล้อง CCTV จากแหล่งข้อมูลที่เชื่อมต่อได้ · หมุดกล้องที่มีพิกัดจะแสดงบนแผนที่ · ภาพขึ้นอยู่กับการอนุญาตของต้นทาง')+'<div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง · 3 จอ</h3><a class="more" href="/cctv.html" style="text-decoration:none">ดูทั้งหมด ↗</a></div><div id="cctvReal">กำลังโหลดรายการกล้อง...</div>';loadCCTV();}
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
  else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
- else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
+ else if(key==='น้ำทะเลหนุน')v17LoadSea();
  else if(key==='เรดาร์สภาพอากาศ')loadRadarWeather();
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }

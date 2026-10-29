@@ -412,3 +412,27 @@ app.get('/',(req,res)=>{const a=path.join(ROOT,'public','index.html'),b=path.joi
 app.listen(PORT,'0.0.0.0',()=>console.log('Thai Flood Watch listening on '+PORT));
 
 app.get('/cctv.html',(req,res)=>{const a=path.join(ROOT,'public','cctv.html'),b=path.join(ROOT,'cctv.html');const f=fs.existsSync(a)?a:fs.existsSync(b)?b:null;if(!f)return res.status(404).send('CCTV page not found');res.sendFile(f);});
+
+// V17 sea level: DMR ArcGIS station locations. Measurements require a verified feed.
+const SEA_STATIONS_URL='https://gisportal.dmr.go.th/arcgis/rest/services/ENVI/TIDE_WATER/MapServer/0/query';
+let seaStationsCache={at:0,stations:[]};
+app.get('/api/sea/stations',async(req,res)=>{
+ res.set('Cache-Control','no-store');
+ try{
+  if(Date.now()-seaStationsCache.at>3600000){
+   const u=new URL(SEA_STATIONS_URL);Object.entries({where:'1=1',outFields:'*',returnGeometry:'true',outSR:'4326',f:'json'}).forEach(([k,v])=>u.searchParams.set(k,v));
+   const r=await fetch(u,{signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('DMR HTTP '+r.status);
+   const j=await r.json();if(j.error||!Array.isArray(j.features))throw Error('DMR service unavailable');
+   seaStationsCache={at:Date.now(),stations:j.features.map((f,i)=>({id:String(f.attributes?.TW_ID??i),name:String(f.attributes?.TW_NAME||f.attributes?.tw_name||'สถานี '+(i+1)),lat:Number(f.geometry?.y),lon:Number(f.geometry?.x)})).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon))};
+  }
+  res.json({ok:true,source:'กรมทรัพยากรธรณี DMR ArcGIS',kind:'station-locations-only',asOf:new Date(seaStationsCache.at).toISOString(),stations:seaStationsCache.stations});
+ }catch(e){res.status(503).json({ok:false,error:'ไม่สามารถโหลดตำแหน่งสถานี DMR ได้',details:String(e.message)});}
+});
+app.get('/api/sea/levels',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ // JSON is explicitly provisioned by operator after validating source, datum, units, timestamps.
+ let feeds=[];try{feeds=JSON.parse(process.env.SEA_LEVEL_VERIFIED_JSON||'[]');}catch{}
+ if(!Array.isArray(feeds))feeds=[];
+ const stations=feeds.filter(x=>x&&typeof x==='object'&&x.source&&x.datum&&Array.isArray(x.readings)).map(x=>({id:String(x.id||''),name:String(x.name||''),source:String(x.source),datum:String(x.datum),unit:'m',readings:x.readings.filter(r=>Number.isFinite(Number(r.level))&&Number.isFinite(Date.parse(r.time))).map(r=>({time:new Date(r.time).toISOString(),level:Number(r.level)})).sort((a,b)=>a.time.localeCompare(b.time)).slice(-144)}));
+ res.json({ok:true,kind:'verified-measurements-only',asOf:new Date().toISOString(),stations,note:stations.length?'ตรวจสอบเวลาของแต่ละค่าก่อนใช้งาน':'ยังไม่มีฟีดค่าระดับน้ำทะเลที่ยืนยันแล้ว; ข้อมูลสถานีไม่ใช่ค่าระดับน้ำสด'});
+});
