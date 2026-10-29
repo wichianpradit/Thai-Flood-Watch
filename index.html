@@ -399,7 +399,7 @@ document.querySelectorAll('.map-tabs button').forEach((button,i)=>{
     activeField=tabFields[i];drawPoints();
   });
 });
-map.on('click',event=>loadLocation(event.latlng.lat,event.latlng.lng));
+map.on('click',event=>{loadLocation(event.latlng.lat,event.latlng.lng);if(window.v11ReportClick)window.v11ReportClick(event.latlng.lat,event.latlng.lng);});
 // Stagger startup requests; avoid overwhelming slow Render instances and the browser.
 setTimeout(()=>loadLocation(selected.lat,selected.lon),250);
 setTimeout(()=>loadMap(),2200);
@@ -616,6 +616,57 @@ async function v22LoadOverview(request){
 }
 let openKey='';
 window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loadRainV19();else if(openKey==='เรดาร์สภาพอากาศ')loadRadarWeather();};
+
+// V11: public historical weather model; does not fabricate flood alerts.
+let v11Rows=[],v11Loc=null,v11Request=0;
+const v11Fmt=n=>n===null||n===undefined||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('th-TH',{maximumFractionDigits:1});
+function v11OpenReport(){
+ body.innerHTML=`<div class="moduleNote"><b>📋 ประวัติอากาศย้อนหลัง</b><br>คลิกจุดใดก็ได้บนแผนที่เพื่อดูข้อมูลของบริเวณนั้น ข้อมูลย้อนหลังจาก Open-Meteo Archive เป็นข้อมูลแบบจำลอง/วิเคราะห์ย้อนหลัง <b>ไม่ใช่ฝนตรวจวัดจริง ไม่ใช่คำเตือนน้ำท่วม</b></div>
+ <div class="item"><label>ช่วงย้อนหลัง <select id="v11Days" style="padding:8px;background:#102e43;color:white;border-radius:8px"><option value="7">7 วัน</option><option value="30" selected>30 วัน</option><option value="90">90 วัน</option></select></label>
+ <button id="v11Reload">🔄 โหลดข้อมูล</button> <button id="v11Csv" disabled>⬇ ดาวน์โหลด CSV</button></div>
+ <div id="v11Result" class="moduleNote">กำลังเตรียมข้อมูล...</div><div id="v11Chart"></div>
+ <div class="moduleNote">⚠️ การแจ้งเตือนน้ำท่วมอัตโนมัติยังไม่เปิดใช้งาน เพราะยังไม่มีข้อมูลประกาศเตือนภัยทางการหรือเกณฑ์วิกฤตเฉพาะสถานีที่ยืนยันแล้ว จึงไม่สร้างป๊อปอัปเตือนภัยจากค่าฝนเพียงอย่างเดียว</div>`;
+ document.getElementById('v11Reload').onclick=()=>v11Fetch(selected.lat,selected.lon);
+ document.getElementById('v11Days').onchange=()=>v11Fetch(selected.lat,selected.lon);
+ document.getElementById('v11Csv').onclick=v11Export;
+ v11Fetch(selected.lat,selected.lon);
+}
+window.v11ReportClick=(lat,lon)=>{if(openKey==='รายงานสถานการณ์')v11Fetch(lat,lon);};
+async function v11Fetch(lat,lon){
+ const id=++v11Request;
+ const el=document.getElementById('v11Result');if(!el)return;
+ el.textContent='กำลังโหลดประวัติบริเวณพิกัด '+lat.toFixed(3)+', '+lon.toFixed(3)+' ...';
+ document.getElementById('v11Csv').disabled=true;
+ const days=Number(document.getElementById('v11Days')?.value||30);
+ const end=new Date(Date.now()-2*86400000),start=new Date(end.getTime()-(days-1)*86400000);
+ const date=d=>d.toISOString().slice(0,10);
+ const url='https://archive-api.open-meteo.com/v1/archive?latitude='+encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+'&start_date='+date(start)+'&end_date='+date(end)+'&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,wind_speed_10m_max&timezone=Asia%2FBangkok';
+ try{
+  const r=await fetch(url);
+  // Reverse geocoding is not guaranteed by provider; report coordinates rather than guessing province.
+  if(!r.ok)throw Error('Archive HTTP '+r.status);
+  const j=await r.json();
+  if(id!==v11Request||openKey!=='รายงานสถานการณ์')return;
+  const d=j.daily||{};
+  v11Rows=(d.time||[]).map((day,i)=>({day,rain:d.precipitation_sum?.[i]??null,tmax:d.temperature_2m_max?.[i]??null,tmin:d.temperature_2m_min?.[i]??null,wind:d.wind_speed_10m_max?.[i]??null}));
+  v11Loc={lat,lon,days,source:'Open-Meteo Historical Weather API',updated:new Date().toISOString()};
+  const sum=v11Rows.reduce((a,r)=>a+(Number(r.rain)||0),0);
+  el.innerHTML='<b>📍 พิกัด '+lat.toFixed(4)+', '+lon.toFixed(4)+'</b><br>ช่วง '+date(start)+' ถึง '+date(end)+'<br>ฝนสะสมจากแบบจำลอง '+v11Fmt(sum)+' มม. · '+v11Rows.length+' วัน<br><small>ข้อมูลย้อนหลังอาจล่าช้า 1–2 วัน และไม่สามารถระบุจังหวัดจากพิกัดได้โดยตรงในเวอร์ชันนี้</small>';
+  const max=Math.max(1,...v11Rows.map(x=>Number(x.rain)||0));
+  document.getElementById('v11Chart').innerHTML='<div class="item"><b>กราฟฝนรายวัน (มม.)</b><div style="display:flex;align-items:end;gap:2px;height:115px;margin-top:12px">'+v11Rows.map(x=>'<div title="'+x.day+': '+v11Fmt(x.rain)+' มม." style="flex:1;min-width:2px;background:#4cc9f0;height:'+Math.max(1,Math.round((Number(x.rain)||0)/max*100))+'%"></div>').join('')+'</div><small>แท่งละ 1 วัน · แตะแท่งเพื่อดูวันที่และปริมาณฝน</small></div>'+
+   '<div style="overflow:auto;max-height:320px"><table style="width:100%;font-size:12px"><thead><tr><th>วันที่</th><th>ฝน มม.</th><th>สูงสุด °C</th><th>ต่ำสุด °C</th><th>ลม กม./ชม.</th></tr></thead><tbody>'+v11Rows.map(x=>'<tr><td>'+x.day+'</td><td>'+v11Fmt(x.rain)+'</td><td>'+v11Fmt(x.tmax)+'</td><td>'+v11Fmt(x.tmin)+'</td><td>'+v11Fmt(x.wind)+'</td></tr>').join('')+'</tbody></table></div>';
+  document.getElementById('v11Csv').disabled=!v11Rows.length;
+ }catch(e){if(id===v11Request&&openKey==='รายงานสถานการณ์')el.textContent='โหลดข้อมูลย้อนหลังไม่สำเร็จ: '+e.message+' (อาจเป็นปัญหาการเชื่อมต่อ API/CORS)';}
+}
+function v11Export(){
+ if(!v11Rows.length||!v11Loc)return;
+ const headers=['date','precipitation_mm_model','temperature_max_c','temperature_min_c','wind_max_kmh'];
+ const lines=[['# Source: '+v11Loc.source],['# Coordinates: '+v11Loc.lat+', '+v11Loc.lon],headers,...v11Rows.map(r=>[r.day,r.rain??'',r.tmax??'',r.tmin??'',r.wind??''])];
+ const csv='\ufeff'+lines.map(a=>a.join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Thai_Flood_Watch_History_'+v11Loc.lat.toFixed(3)+'_'+v11Loc.lon.toFixed(3)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+
 function show(key){
  v10ShowControls(false);v10Generation++;
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
@@ -624,7 +675,8 @@ function show(key){
  if(key!=='พื้นที่เสี่ยงน้ำท่วม'&&key!=='ระดับน้ำในแม่น้ำ'){floodStationMarkers.clearLayers();clearRiverTrends();}
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';panel.scrollTop=0;body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
- else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
+ else if(key==='รายงานสถานการณ์')v11OpenReport();
+ else if(key==='ลมและคลื่นทะเล')loadWeather(key);
  else if(key==='CCTV'){body.innerHTML=note('📹 กล้อง CCTV จากแหล่งข้อมูลที่เชื่อมต่อได้ · หมุดกล้องที่มีพิกัดจะแสดงบนแผนที่ · ภาพขึ้นอยู่กับการอนุญาตของต้นทาง')+'<div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง · 3 จอ</h3><a class="more" href="/cctv.html" style="text-decoration:none">ดูทั้งหมด ↗</a></div><div id="cctvReal">กำลังโหลดรายการกล้อง...</div>';loadCCTV();}
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
  else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
