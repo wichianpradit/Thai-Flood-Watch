@@ -256,6 +256,56 @@ app.get('/api/cctv/cameras',async(req,res)=>{
   res.json({ok:true,source:'ThaiWater camera directory',fetchedAt:new Date(cameraCache.at).toISOString(),cameras:mergedCameras(items),streamVerified:false,directoryCount:rows.length});
  }catch(e){res.status(502).json({ok:false,error:'ไม่สามารถเชื่อมรายการกล้อง ThaiWater: '+e.message});}
 });
+
+// V8: Current modeled precipitation at representative district centers.
+// These are point samples, NOT measured rainfall, district-wide coverage, or a national census.
+const rainSamplePlaces=[
+ ['เมืองปัตตานี','ปัตตานี',6.869,101.250],['สายบุรี','ปัตตานี',6.702,101.616],
+ ['เมืองยะลา','ยะลา',6.541,101.281],['เบตง','ยะลา',5.773,101.072],
+ ['เมืองนราธิวาส','นราธิวาส',6.426,101.825],['สุไหงโก-ลก','นราธิวาส',6.029,101.966],
+ ['หาดใหญ่','สงขลา',7.008,100.475],['เมืองสงขลา','สงขลา',7.198,100.595],
+ ['เมืองสตูล','สตูล',6.623,100.067],['เมืองตรัง','ตรัง',7.557,99.611],
+ ['เมืองพัทลุง','พัทลุง',7.616,100.077],['เมืองนครศรีธรรมราช','นครศรีธรรมราช',8.430,99.963],
+ ['เกาะสมุย','สุราษฎร์ธานี',9.513,100.013],['เมืองสุราษฎร์ธานี','สุราษฎร์ธานี',9.139,99.330],
+ ['เมืองภูเก็ต','ภูเก็ต',7.881,98.392],['เมืองกระบี่','กระบี่',8.086,98.906],
+ ['เมืองชุมพร','ชุมพร',10.494,99.180],['หัวหิน','ประจวบคีรีขันธ์',12.570,99.958],
+ ['เมืองเพชรบุรี','เพชรบุรี',13.111,99.944],['เมืองราชบุรี','ราชบุรี',13.536,99.817],
+ ['บางพลี','สมุทรปราการ',13.600,100.713],['บางรัก','กรุงเทพมหานคร',13.729,100.525],
+ ['เมืองนนทบุรี','นนทบุรี',13.861,100.514],['คลองหลวง','ปทุมธานี',14.065,100.646],
+ ['เมืองเชียงใหม่','เชียงใหม่',18.789,98.986],['เมืองเชียงราย','เชียงราย',19.908,99.831],
+ ['เมืองขอนแก่น','ขอนแก่น',16.441,102.836],['เมืองอุบลราชธานี','อุบลราชธานี',15.245,104.848],
+ ['เมืองนครราชสีมา','นครราชสีมา',14.979,102.097],['เมืองระยอง','ระยอง',12.681,101.281]
+];
+let rainAreasCache={at:0,value:null};
+app.get('/api/rain/current-areas',async(req,res)=>{
+ try{
+  if(rainAreasCache.value && Date.now()-rainAreasCache.at<10*60*1000)return res.json(rainAreasCache.value);
+  const lat=rainSamplePlaces.map(p=>p[2]).join(',');
+  const lon=rainSamplePlaces.map(p=>p[3]).join(',');
+  const u='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
+   '&current=precipitation,temperature_2m,relative_humidity_2m,wind_speed_10m'+
+   '&wind_speed_unit=kmh&timezone=Asia%2FBangkok';
+  const r=await fetch(u,{signal:AbortSignal.timeout(18000)});
+  if(!r.ok)throw Error('Weather provider HTTP '+r.status);
+  const payload=await r.json();
+  const rows=Array.isArray(payload)?payload:[payload];
+  if(rows.length!==rainSamplePlaces.length)throw Error('Weather provider returned unexpected sample count');
+  const places=rows.map((v,i)=>{
+   const p=rainSamplePlaces[i],c=v.current||{};
+   const num=x=>x===null||x===undefined||x===''?null:(Number.isFinite(Number(x))?Number(x):null);
+   return {district:p[0],province:p[1],lat:p[2],lon:p[3],time:c.time||null,
+    precipitationMm:num(c.precipitation),temperatureC:num(c.temperature_2m),
+    humidityPct:num(c.relative_humidity_2m),windKmh:num(c.wind_speed_10m)};
+  });
+  const raining=places.filter(p=>p.precipitationMm!==null&&p.precipitationMm>0).sort((a,b)=>b.precipitationMm-a.precipitationMm);
+  const result={ok:true,source:'Open-Meteo current weather model',type:'modeled-point-samples',
+   scope:'30 representative district-center points only, not all districts or confirmed rain areas',
+   units:{precipitation:'mm in current model interval (typically 15 min)',temperature:'°C',humidity:'%',wind:'km/h'},
+   updatedAt:new Date().toISOString(),sampleCount:places.length,rainingCount:raining.length,areas:raining};
+  rainAreasCache={at:Date.now(),value:result};res.json(result);
+ }catch(e){res.status(502).json({ok:false,error:e.message});}
+});
+
 app.get('/api/modules/status',(req,res)=>res.json({ok:true,updatedAt:new Date().toISOString(),modules:{forecast:{available:!!process.env.TMD_TOKEN,source:'TMD forecast, not observed rainfall'},rainMap:{available:!!process.env.TMD_TOKEN,source:'TMD sampled forecast, not radar'},water:{available:true,source:'ThaiWater observed station water levels (MSL); situation codes not interpreted'},floodRisk:{available:false},tide:{available:false},radar:{available:false},waves:{available:false},cctv:{available:false},shelters:{available:false}}}));
 
 // V19: 7-day model forecast. This is not observed rainfall.
