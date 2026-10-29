@@ -234,11 +234,12 @@ body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!impo
 <script>
 const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([13.0,101.2],5.8);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-// V21: real observed radar georeferenced XYZ tiles (RainViewer, not TMD).
+// V9: georeferenced RainViewer radar tiles on main map for Current Rain and Radar menus; not TMD.
+// The right panel retains separately sourced modeled sample-point weather data.
 let v21RadarLayer=null,v21RadarActive=false,v21Opacity=0.7,v21RadarMeta=null;
 const v21Controls=document.createElement('div');v21Controls.id='v21RadarControls';
 v21Controls.style.cssText='display:none;position:absolute;z-index:800;left:12px;top:14px;max-width:245px;padding:12px;border-radius:12px;background:#08263eea;color:white;font:12px sans-serif;border:1px solid #3983a3;box-shadow:0 4px 14px #0008';
-v21Controls.innerHTML='<strong>📡 เรดาร์ฝนตรวจวัดจริง</strong><div style="margin:6px 0">แหล่งข้อมูล: RainViewer (ไม่ใช่ TMD)</div><div id="v21RadarTime">กำลังโหลดภาพ...</div><label style="display:block;margin-top:8px"><input id="v21RadarToggle" type="checkbox" checked> แสดงเรดาร์บนแผนที่</label><label style="display:block;margin-top:7px">ความเข้มภาพ <input id="v21RadarOpacity" type="range" min="20" max="100" value="70" style="width:100%"></label><div style="font-size:10px;color:#c1d8e7;margin-top:6px">สีแสดงการสะท้อนเรดาร์ ไม่ใช่ปริมาณฝนที่พื้นดิน (มม.)</div>';
+v21Controls.innerHTML='<strong>📡 เรดาร์ฝนล่าสุดบนแผนที่</strong><div style="margin:6px 0">แหล่งข้อมูล: RainViewer (ไม่ใช่ TMD)</div><div id="v21RadarTime">กำลังโหลดภาพ...</div><label style="display:block;margin-top:8px"><input id="v21RadarToggle" type="checkbox" checked> แสดงเรดาร์บนแผนที่</label><label style="display:block;margin-top:7px">ความเข้มภาพ <input id="v21RadarOpacity" type="range" min="20" max="100" value="70" style="width:100%"></label><div style="font-size:10px;color:#c1d8e7;margin-top:6px">สีแสดงการสะท้อนเรดาร์ ไม่ใช่ปริมาณฝนที่พื้นดิน (มม.)</div>';
 document.querySelector('.maparea').appendChild(v21Controls);
 document.getElementById('v21RadarToggle').onchange=e=>{if(v21RadarLayer){if(e.target.checked)v21RadarLayer.addTo(map);else map.removeLayer(v21RadarLayer);}};
 document.getElementById('v21RadarOpacity').oninput=e=>{v21Opacity=Number(e.target.value)/100;if(v21RadarLayer)v21RadarLayer.setOpacity(v21Opacity);};
@@ -481,12 +482,12 @@ function v20RadarEmbed(){
  <div style="font-size:12px;color:#b6cee1;margin-top:8px">หากภาพว่าง แสดงว่าเว็บต้นทางอาจไม่อนุญาตให้ฝังหน้าเว็บ หรือการเชื่อมต่อล้มเหลว <a href="https://weather.tmd.go.th/composite/index_composite.html" target="_blank" rel="noopener noreferrer" style="color:#8bdcff">ตรวจสอบภาพที่ต้นทาง</a></div>
  </section>`;
 }
-function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;window.rainV19Mode=rainV19Mode;v21EnableRadar(false);updateRainPatches();const legend=document.getElementById('rainForecastLegend');if(legend)legend.style.display=rainV19Mode==='observed'?'none':'block';loadRainV19();}));}
+function v19WireButtons(){body.querySelectorAll('[data-v19]').forEach(b=>b.addEventListener('click',()=>{rainV19Mode=b.dataset.v19;window.rainV19Mode=rainV19Mode;v21EnableRadar(rainV19Mode==='observed');updateRainPatches();const legend=document.getElementById('rainForecastLegend');if(legend)legend.style.display=rainV19Mode==='observed'?'none':'block';loadRainV19();}));}
 async function loadRainV19(){
  if(openKey!=='ฝนปัจจุบัน')return;
  body.innerHTML=v19Buttons(rainV19Mode)+note('กำลังเตรียมข้อมูล...');v19WireButtons();
  if(rainV19Mode==='observed'){
-   body.innerHTML=v19Buttons('observed')+note('กำลังตรวจข้อมูลฝนปัจจุบันตามจุดตัวอย่างรายอำเภอ...');v19WireButtons();
+   body.innerHTML=v19Buttons('observed')+note('กำลังโหลดรายการจุดตัวอย่างฝน และแสดงเรดาร์ล่าสุดบนแผนที่หลัก...');v19WireButtons();
    try {
     const j=await getJSON('/api/rain/current-areas');
     if(openKey!=='ฝนปัจจุบัน'||rainV19Mode!=='observed')return;
@@ -498,7 +499,7 @@ async function loadRainV19(){
     </article>`).join('');
     body.innerHTML=v19Buttons('observed')+
       note('🌧️ พบค่าฝนมากกว่า 0 มม. ที่ '+j.rainingCount+' จาก '+j.sampleCount+' จุดตัวอย่าง · อัปเดต '+v19Escape(j.updatedAt||'--'))+
-      note('แหล่งข้อมูล Open-Meteo: ค่าประเมินจากแบบจำลองสภาพอากาศ ณ จุดกลางอำเภอตัวอย่าง ไม่ใช่สถานีวัดฝนสด ไม่ครอบคลุมทุกอำเภอ และไม่ยืนยันว่าฝนตกทั่วทั้งอำเภอ')+
+      note('แผนที่หลัก: เรดาร์ RainViewer (ไม่ใช่ TMD) · รายการด้านล่าง: Open-Meteo แบบจำลอง ณ จุดตัวอย่าง 30 แห่ง ไม่ใช่ค่าฝนจากเรดาร์หรือสถานีจริง และไม่ครอบคลุมทุกอำเภอ')+
       (cards||note('ไม่พบค่าฝนมากกว่า 0 มม. ในจุดตัวอย่างที่ตรวจ ไม่ได้หมายความว่าทั่วประเทศไม่มีฝน'))+
       note('หน่วยฝน: มิลลิเมตรต่อช่วงข้อมูลปัจจุบันของแบบจำลอง (โดยทั่วไปประมาณ 15 นาที) · ความเร็วลม: กม./ชม.');
     v19WireButtons();
@@ -567,8 +568,8 @@ let openKey='';
 window.refreshV19Selected=()=>{if(openKey==='ฝนปัจจุบัน')loadRainV19();else if(openKey==='เรดาร์สภาพอากาศ')loadRadarWeather();};
 function show(key){
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(key==='CCTV');
- if(key==='ฝนปัจจุบัน'&&typeof window.setRainMapMode==='function')window.setRainMapMode(false);else if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
- v21EnableRadar(key==='เรดาร์สภาพอากาศ');
+ if(key==='ฝนปัจจุบัน'&&typeof window.setRainMapMode==='function')window.setRainMapMode(true);else if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
+ v21EnableRadar(key==='เรดาร์สภาพอากาศ'||(key==='ฝนปัจจุบัน'&&rainV19Mode==='observed'));
  if(key!=='พื้นที่เสี่ยงน้ำท่วม'&&key!=='ระดับน้ำในแม่น้ำ'){floodStationMarkers.clearLayers();clearRiverTrends();}
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';panel.scrollTop=0;body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
