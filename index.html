@@ -167,6 +167,11 @@ body.v3-force-mobile #modulePanel[style*="display:block"] {overflow-y:auto!impor
 body.v3-force-desktop #modulePanel[style*="display: block"],
 body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!important}
 
+
+/* V7: CCTV preview exists only in the CCTV module; no permanent dashboard tile */
+#moduleBody .cctvThree{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px 0}
+#moduleBody .cctvScreen{min-height:90px}
+@media(max-width:600px){#moduleBody .cctvThree{grid-template-columns:1fr}#moduleBody .cctvScreen{min-height:165px}}
 </style>
 </head>
 <body>
@@ -217,10 +222,6 @@ body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!impo
    <div class="tabs"><button class="active">แจ้งเตือนล่าสุด</button><button>ระดับน้ำ</button><button>น้ำทะเลหนุน</button><button>ข่าวสาร</button></div>
    <div class="alerts" id="alerts"><div class="alertrow"><div class="alerttext"><b>กำลังโหลดพยากรณ์ TMD (ไม่ใช่ฝนตรวจวัดจริง)...</b><small>ข้อมูลพยากรณ์ ไม่ใช่การตรวจวัดฝนสด</small></div></div></div>  </div>
   <div id="modulePanel" aria-label="ข้อมูลระบบตามเมนู"><div class="moduleTop"><h2 id="moduleTitle"></h2><button id="closeModule" type="button">✕ ภาพรวม</button></div><div id="moduleBody"></div></div>
-  </div>
-  <div class="card" id="cctvPermanent">
-   <div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง · 3 จอ</h3><a class="more" href="/cctv.html" target="_blank" rel="noopener" style="text-decoration:none">ดูทั้งหมด ↗</a></div>
-   <div id="cctvReal" style="padding:12px">กำลังโหลดรายชื่อกล้องจาก ThaiWater...</div>
   </div>
  </section>
  <div class="bottom">
@@ -455,7 +456,7 @@ window.showCameraInRightPanel=function(c){
  if(c.page&&/^https:\/\//i.test(c.page)){const a=document.createElement('a');a.href=c.page;a.target='_blank';a.rel='noopener noreferrer';a.textContent='หน้าแหล่งข้อมูลกล้องต้นทาง ↗';a.style.cssText='display:block;margin-top:12px;color:#76d7ff';body.append(a);}
  const note=document.createElement('div');note.className='moduleNote';note.textContent='ภาพแสดงได้เมื่อมีสตรีมที่อนุญาตให้ฝังในเว็บและเบราว์เซอร์รองรับ หากเปิดไม่ได้จะไม่ใช้ภาพจำลอง';body.append(note);
 };
-setTimeout(loadCCTV,4000);
+// CCTV is loaded only after the CCTV menu is opened.
 
 const panel=document.getElementById('modulePanel');
 const dashboardOverview=document.getElementById('dashboardOverview');
@@ -555,12 +556,11 @@ function show(key){
  openKey=key;title.textContent=headings[key]||key;dashboardOverview.style.display='none';panel.style.display='block';panel.scrollTop=0;body.innerHTML=note('กำลังเตรียมข้อมูล...');
  if(key==='ฝนปัจจุบัน')loadRainV19();
  else if(key==='ลมและคลื่นทะเล'||key==='รายงานสถานการณ์')loadWeather(key);
- else if(key==='CCTV')body.innerHTML=note('📹 หมุดกล้อง CCTV ที่มีพิกัดจริงจะแสดงบนแผนที่ กดหมุดเพื่อเปิดภาพในช่องนี้ · ข้อมูลจาก ThaiWater และแหล่งที่เชื่อมต่อได้ · หากไม่พบหมุด หมายถึงยังไม่มีข้อมูลพิกัดหรือ API ไม่พร้อม')+grid([stat('กล้องบนแผนที่','ดูหมุด 📹','เฉพาะรายการที่มีพิกัด')]);
+ else if(key==='CCTV'){body.innerHTML=note('📹 กล้อง CCTV จากแหล่งข้อมูลที่เชื่อมต่อได้ · หมุดกล้องที่มีพิกัดจะแสดงบนแผนที่ · ภาพขึ้นอยู่กับการอนุญาตของต้นทาง')+'<div class="card-head"><h3>📷 CCTV พื้นที่เสี่ยง · 3 จอ</h3><a class="more" href="/cctv.html" style="text-decoration:none">ดูทั้งหมด ↗</a></div><div id="cctvReal">กำลังโหลดรายการกล้อง...</div>';loadCCTV();}
  else if(key==='ระดับน้ำในแม่น้ำ')loadWater();
  else if(key==='พื้นที่เสี่ยงน้ำท่วม')loadVerifiedRisk();
  else if(key==='น้ำทะเลหนุน')body.innerHTML=pending('ระดับน้ำทะเลจากสถานีตรวจวัดและค่าทำนายน้ำขึ้นน้ำลง');
  else if(key==='เรดาร์สภาพอากาศ')loadRadarWeather();
- else if(key==='CCTV'){body.innerHTML=note('รายชื่อกล้องจริงจาก ThaiWater แสดงในส่วน CCTV ด้านล่าง • กดเลือกกล้องเพื่อดูภาพหากสตรีมรองรับ');loadCCTV();}
  else if(key==='จุดช่วยเหลือ')body.innerHTML=pending('พิกัดศูนย์พักพิงและจุดช่วยเหลือที่ยืนยันแล้ว');
 }
 window.renderSelectedRainForecast=function(f){
