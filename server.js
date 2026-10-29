@@ -166,6 +166,24 @@ app.get('/api/water/stations',async(req,res)=>{
  res.json({ok:true,source:'ThaiWater public endpoint',kind:'observed-station-level',datum:'MSL',units:{level:'m',change:'m'},count:stations.length,fetchedAt:new Date(waterCache.at).toISOString(),stations});
  }catch(e){res.status(502).json({ok:false,error:e.message});}
 });
+// V15: in-memory observation history, keyed by station and observation timestamp.
+// Resets on server restart. Only distinct source observation times count as consecutive readings.
+const waterObservationHistory=new Map();
+function waterHistoryFor(s){
+ const id=String(s.id||s.code||'');const t=Date.parse(s.observedAt||'');
+ if(!id||!t||s.levelMsl===null)return [];
+ let a=waterObservationHistory.get(id)||[];
+ if(!a.some(x=>x.t===t)){a.push({t,level:s.levelMsl});a.sort((x,y)=>x.t-y.t);a=a.slice(-12);waterObservationHistory.set(id,a);}
+ return a;
+}
+function waterScreening(s,h){
+ const largeRise=s.changeM!==null&&s.changeM>=0.30;
+ const last=h.slice(-3);
+ const continuous=last.length===3&&last.every((v,i)=>i===0||v.level>last[i-1].level)&&last[2].level-last[0].level>=0.30;
+ return {largeRise,continuousRise:continuous,watch:largeRise||continuous,observationCount:h.length,
+  // No bank elevation or verified flood thresholds: this is not a flood warning.
+  alertKind:continuous?'continuous-observed-rise':largeRise?'single-interval-rise':null};
+}
 // Observational screening only: no nationwide flood-risk or official warning inference.
 app.get('/api/flood/monitor',async(req,res)=>{
  try{
@@ -176,11 +194,12 @@ app.get('/api/flood/monitor',async(req,res)=>{
    const t=Date.parse(s.observedAt)||0;
    const ageHours=t&&latest?Math.round((latest-t)/3600000*10)/10:null;
    const trend=s.changeM===null?'unknown':s.changeM>0?'rising':s.changeM<0?'falling':'steady';
-   return {...s,trend,ageHours,relativeToLatest:ageHours!==null&&ageHours<=24?'recent':'old-or-unknown'};
+   const h=waterHistoryFor(s);return {...s,trend,ageHours,relativeToLatest:ageHours!==null&&ageHours<=24?'recent':'old-or-unknown',screening:waterScreening(s,h)};
   });
   const recent=stations.filter(s=>s.relativeToLatest==='recent'&&s.levelMsl!==null);
   const rising=recent.filter(s=>s.trend==='rising').sort((a,b)=>b.changeM-a.changeM);
-  res.json({ok:true,source:'ThaiWater public endpoint',classification:'station-observation-screening-not-flood-warning',datum:'MSL',fetchedAt:new Date(waterCache.at).toISOString(),latestObservationAt:latest?new Date(latest).toISOString():null,summary:{total:stations.length,recentWithLevel:recent.length,rising:rising.length,falling:recent.filter(s=>s.trend==='falling').length,steady:recent.filter(s=>s.trend==='steady').length,unknown:recent.filter(s=>s.trend==='unknown').length},stations,risingStations:rising.slice(0,100)});
+  const watchStations=recent.filter(s=>s.screening.watch&&s.lat!==null&&s.lon!==null).sort((a,b)=>(Number(b.screening.continuousRise)-Number(a.screening.continuousRise))||(b.changeM||0)-(a.changeM||0));
+  res.json({ok:true,source:'ThaiWater public endpoint',classification:'station-observation-screening-not-flood-warning',datum:'MSL',fetchedAt:new Date(waterCache.at).toISOString(),latestObservationAt:latest?new Date(latest).toISOString():null,summary:{total:stations.length,recentWithLevel:recent.length,rising:rising.length,falling:recent.filter(s=>s.trend==='falling').length,steady:recent.filter(s=>s.trend==='steady').length,unknown:recent.filter(s=>s.trend==='unknown').length},stations,watchStations:watchStations.slice(0,100),screeningThreshold:{risePerSourceIntervalM:0.30,continuousMinReadings:3,continuousTotalRiseM:0.30,meaning:'experimental observation watch; not official flood alert'},risingStations:rising.slice(0,100)});
  }catch(e){res.status(502).json({ok:false,error:e.message});}
 });
 // OpenStreetMap river geometry near a measured ThaiWater station. Geometry is NOT an inundation map.
