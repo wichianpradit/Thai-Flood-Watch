@@ -1,0 +1,1 @@
+V23.3: Flood Eye opens inside the main index.html, so it does not require a /flood-eye.html route on Render. Existing API calls remain unchanged. Upload index.html to the same location where the working site is served. This does not fix unrelated API routing errors. Flood Eye reports remain browser-local only.

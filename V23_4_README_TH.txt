@@ -1,0 +1,1 @@
+V23.4: ปุ่ม Flood Eye เป็น button ไม่มี href ไปยัง /flood-eye.html; เปิด Flood Eye ในหน้า index.html ด้วย iframe srcdoc. ให้แทนที่ index.html บนโฮสต์ที่เปิดใช้งานจริง แล้ว Hard refresh (Ctrl+Shift+R) หรือเปิดหน้าต่างไม่ระบุตัวตน. หากยัง Cannot GET แสดงว่ายังใช้ index.html เก่าหรือมีลิงก์อื่นอยู่บนหน้าเว็บ. API หลักไม่เปลี่ยน.
