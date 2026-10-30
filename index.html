@@ -559,11 +559,83 @@ function v18SetHour(h){v18Hour=Math.max(0,Math.min(12,h));const slider=document.
 function v18TogglePlay(){if(v18Playing){v18Stop();return;}v18Playing=true;const b=document.getElementById('v18Play');if(b)b.textContent='Ⅱ หยุด';if(v18Hour>=12)v18SetHour(0);v18Timer=setInterval(()=>{if(openKey!=='เรดาร์สภาพอากาศ'||!document.getElementById('v18Hour')){v18Stop();return;}v18SetHour(v18Hour>=12?0:v18Hour+1);},1200);}
 async function v18FetchECMWF(){if(v18Loading)return;v18Loading=true;const el=document.getElementById('v18Compare');if(el)el.textContent='กำลังโหลด ECMWF...';try{const u='https://api.open-meteo.com/v1/ecmwf?latitude='+encodeURIComponent(selected.lat)+'&longitude='+encodeURIComponent(selected.lon)+'&hourly=precipitation&forecast_days=2&timezone=Asia%2FBangkok';const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let r;try{r=await fetch(u,{signal:controller.signal,cache:'no-store'});}finally{clearTimeout(timer);}if(!r.ok)throw Error('HTTP '+r.status);let j=await r.json();if(!j.hourly?.time||!j.hourly?.precipitation)throw Error('ไม่พบค่าฝนรายชั่วโมง');v18OpenMeteo={lat:selected.lat,lon:selected.lon,data:j.hourly,updated:new Date()};v18RenderCompare();}catch(e){if(document.getElementById('v18Compare'))document.getElementById('v18Compare').textContent='ECMWF ยังไม่พร้อม: '+e.message+' · แสดง TMD ได้หาก Backend ส่งข้อมูล';}finally{v18Loading=false;}}
 function v18RenderCompare(){const el=document.getElementById('v18Compare');if(!el)return;const target=v18HourTime(v18Hour),tmdPoint=forecastPoints.reduce((best,p)=>{let d=Math.hypot(p.lat-selected.lat,p.lon-selected.lon);return !best||d<best.d?{p,d}:best},null);const tf=tmdPoint&&v18FindForecast(tmdPoint.p.forecasts,target);let tmdText=tf?'TMD จุดตัวอย่างใกล้เคียง: '+fmt(tf.data?.rain)+' มม. · '+safeTime(tf.time):'TMD: ไม่มีข้อมูลที่เวลานี้';let ecm='ECMWF: ยังไม่มีข้อมูล';if(v18OpenMeteo&&Math.abs(v18OpenMeteo.lat-selected.lat)<.001&&Math.abs(v18OpenMeteo.lon-selected.lon)<.001){const a=v18OpenMeteo.data;const iso=target.toLocaleString('sv-SE',{timeZone:'Asia/Bangkok'}).replace(' ','T').slice(0,13);const i=a.time.findIndex(t=>t.slice(0,13)===iso);if(i>=0&&a.precipitation[i]!=null)ecm='ECMWF พิกัดที่เลือก: '+fmt(a.precipitation[i])+' มม./ชม.';}el.textContent='เวลา '+target.toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' | '+tmdText+' | '+ecm+' · โปรดตรวจสอบช่วงสะสมฝนของ TMD ก่อนเปรียบเทียบตัวเลขโดยตรง';}
+
+// V20: provider-supplied radar forecast frames only. No fabricated motion.
+let v20Frames=[],v20Index=0,v20Timer=null,v20Layer=null,v20Loading=false,v20BaseTime=0;
+function v20Stop(){if(v20Timer)clearInterval(v20Timer);v20Timer=null;const b=document.getElementById('v20Play');if(b)b.textContent='▶ Play';}
+function v20Time(t){return new Date(t*1000).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
+function v20Show(i){
+ if(!v20Frames.length)return;
+ v20Index=Math.max(0,Math.min(v20Frames.length-1,i));
+ const f=v20Frames[v20Index];
+ if(v20Layer)map.removeLayer(v20Layer);
+ const url=f.host+f.path+'/256/{z}/{x}/{y}/2/1_1.png';
+ v20Layer=L.tileLayer(url,{opacity:0.75,maxNativeZoom:7,maxZoom:19,attribution:'Radar © RainViewer',crossOrigin:true});
+ v20Layer.addTo(map);
+ const lbl=document.getElementById('v20FrameLabel'),range=document.getElementById('v20Range');
+ if(lbl)lbl.textContent=(f.future?'พยากรณ์ ':'ตรวจวัดจริง ')+v20Time(f.time)+(f.future?' (+'+Math.round((f.time-v20BaseTime)/60)+' นาที)':'');
+ if(range)range.value=v20Index;
+}
+function v20Panel(){return `<section id="v20Nowcast" style="background:#09283b;color:#eaf7ff;border:1px solid #397a96;border-radius:12px;padding:12px;margin:8px 0">
+<b>📡 V20 · เรดาร์กลุ่มฝนเคลื่อนที่</b>
+<p style="font-size:12px;line-height:1.6">เล่นภาพเรดาร์จริงย้อนหลัง ต่อด้วยภาพคาดการณ์จากผู้ให้บริการ <b>เฉพาะเมื่อมีเฟรมอนาคตจริง</b> ไม่สร้างกลุ่มฝนสมมติ</p>
+<div id="v20Status" style="font-size:12px;margin:8px 0">กำลังตรวจสอบภาพเรดาร์...</div>
+<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+<button id="v20Play" type="button" style="padding:9px 13px;border:0;border-radius:8px;background:#087bb0;color:white">▶ Play</button>
+<button id="v20Prev" type="button" style="padding:9px;border:0;border-radius:8px;background:#16425e;color:white">◀</button>
+<button id="v20Next" type="button" style="padding:9px;border:0;border-radius:8px;background:#16425e;color:white">▶</button>
+<button id="v20Reload" type="button" style="padding:9px;border:0;border-radius:8px;background:#16425e;color:white">↻</button>
+</div>
+<input id="v20Range" aria-label="เวลาเรดาร์" type="range" min="0" max="0" value="0" style="width:100%;margin:12px 0">
+<div id="v20FrameLabel" style="font-size:12px"></div>
+<div style="font-size:11px;opacity:.8;margin-top:10px">ภาพอนาคตขึ้นอยู่กับการให้บริการของ RainViewer; หากไม่มีเฟรมอนาคต จะเล่นได้เฉพาะภาพย้อนหลัง ไม่ใช่พยากรณ์ +1 หรือ +2 ชั่วโมง</div>
+</section>`;}
+async function v20Load(){
+ if(v20Loading)return;v20Loading=true;v20Stop();
+ const status=document.getElementById('v20Status');
+ if(status)status.textContent='กำลังโหลดเฟรมจาก RainViewer...';
+ try{
+  const ctrl=new AbortController(),tm=setTimeout(()=>ctrl.abort(),15000);
+  let response;try{response=await fetch('https://api.rainviewer.com/public/weather-maps.json',{signal:ctrl.signal,cache:'no-store'});}finally{clearTimeout(tm);}
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const j=await response.json(),host=j.host||'https://tilecache.rainviewer.com';
+  const past=(j.radar?.past||[]).map(f=>({...f,host,future:false}));
+  const future=(j.radar?.nowcast||[]).map(f=>({...f,host,future:true}));
+  if(!past.length)throw Error('ไม่มีเฟรมเรดาร์');
+  v20BaseTime=past[past.length-1].time;
+  v20Frames=[...past,...future].filter(f=>Number.isFinite(f.time)&&typeof f.path==='string').sort((a,b)=>a.time-b.time);
+  if(!v20Frames.length)throw Error('รูปแบบข้อมูลเฟรมไม่ถูกต้อง');
+  const slider=document.getElementById('v20Range');
+  if(slider)slider.max=v20Frames.length-1;
+  const latest=v20Frames.findLastIndex(f=>!f.future);
+  v20Show(latest<0?0:latest);
+  if(status)status.textContent=future.length?'มีภาพย้อนหลัง '+past.length+' เฟรม · ภาพคาดการณ์ '+future.length+' เฟรม (ตามผู้ให้บริการ)':'มีภาพย้อนหลัง '+past.length+' เฟรม · ขณะนี้ผู้ให้บริการไม่มีภาพคาดการณ์อนาคต';
+  const play=document.getElementById('v20Play');
+  if(play)play.disabled=v20Frames.length<2;
+ }catch(e){if(status)status.textContent='ไม่สามารถโหลดเรดาร์: '+e.message+' (ตรวจสอบเครือข่ายหรือการอนุญาต CORS)';}
+ finally{v20Loading=false;}
+}
+function v20Attach(){
+ if(openKey!=='เรดาร์สภาพอากาศ')return;
+ v18Stop();v20Stop();body.insertAdjacentHTML('afterbegin',v20Panel());
+ document.getElementById('v20Range').oninput=e=>{v20Stop();v20Show(+e.target.value);};
+ document.getElementById('v20Prev').onclick=()=>{v20Stop();v20Show(v20Index-1);};
+ document.getElementById('v20Next').onclick=()=>{v20Stop();v20Show(v20Index+1);};
+ document.getElementById('v20Reload').onclick=v20Load;
+ document.getElementById('v20Play').onclick=()=>{
+  if(v20Timer){v20Stop();return;}if(v20Frames.length<2)return;
+  if(v20Index>=v20Frames.length-1)v20Show(0);
+  document.getElementById('v20Play').textContent='Ⅱ Pause';
+  v20Timer=setInterval(()=>{if(openKey!=='เรดาร์สภาพอากาศ'){v20Stop();return;}if(v20Index>=v20Frames.length-1){v20Stop();return;}v20Show(v20Index+1);},750);
+ };
+ v20Load();
+}
+
 function v18Attach(){if(openKey!=='เรดาร์สภาพอากาศ')return;v18Stop();body.insertAdjacentHTML('afterbegin',v18Markup());document.getElementById('v18Hour').oninput=e=>{v18Stop();v18SetHour(Number(e.target.value));};document.getElementById('v18Play').onclick=v18TogglePlay;document.getElementById('v18Prev').onclick=()=>{v18Stop();v18SetHour(v18Hour-1);};document.getElementById('v18Next').onclick=()=>{v18Stop();v18SetHour(v18Hour+1);};document.getElementById('v18Reload').onclick=()=>{v19LoadField(true);v18FetchECMWF();};v19LoadField();v18FetchECMWF();}
 setInterval(()=>{if(openKey==='เรดาร์สภาพอากาศ'&&document.visibilityState==='visible'){v19LoadField();v18FetchECMWF();}},300000);
 
 async function loadRadarWeather(){
- setTimeout(v18Attach,0);
+ setTimeout(v20Attach,0);
  body.innerHTML=note('📡 เรดาร์สภาพอากาศ · พิกัด '+fmt(selected.lat,3)+', '+fmt(selected.lon,3))+'<div class="v19-weather-grid">'+[
  v19Card('📡','เรดาร์ฝน','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('🌧️','ฝนตรวจวัด','ไม่มีข้อมูล','มม.','ยังไม่เชื่อม'),v19Card('🌡️','อุณหภูมิ','--','°C','พยากรณ์'),v19Card('💧','ความชื้น','--','%','พยากรณ์'),v19Card('💨','ความเร็วลม','--','ม./วินาที','พยากรณ์'),v19Card('🧭','ทิศลม','--','องศา','พยากรณ์'),v19Card('🌊','คลื่น','ไม่มีข้อมูล','ม.','ยังไม่เชื่อม'),v19Card('🔘','ความกดอากาศ','ไม่มีข้อมูล','hPa','ยังไม่เชื่อม'),v19Card('👁️','ทัศนวิสัย','ไม่มีข้อมูล','กม.','ยังไม่เชื่อม'),v19Card('☁️','เมฆ','ไม่มีข้อมูล','%','ยังไม่เชื่อม'),v19Card('⛈️','พายุ','ไม่มีข้อมูล','','ยังไม่เชื่อม'),v19Card('☀️','UV','ไม่มีข้อมูล','','ยังไม่เชื่อม')].join('')+'</div>'+note('ค่าที่ไม่มี API ตรวจสอบได้จะแสดงไม่มีข้อมูล ไม่ใช้ข้อมูลจำลอง');
  try{const j=await getJSON(`/api/tmd/weather3hours?lat=${selected.lat}&lon=${selected.lon}`);if(openKey!=='เรดาร์สภาพอากาศ')return;const f=currentForecast(j.data?.WeatherForecasts?.[0]?.forecasts||[]);if(!f)return;const d=f.data||{};const cards=body.querySelectorAll('.v19-weather-card .value');[[2,d.tc],[3,d.rh],[4,d.ws10m],[5,d.wd10m]].forEach(([i,v])=>{if(v!==null&&v!==undefined&&v!=='')cards[i].textContent=fmt(v)});body.insertAdjacentHTML('beforeend',note('ค่าอุณหภูมิ ความชื้น และลมข้างต้นเป็น <b>พยากรณ์ TMD</b> เวลา '+safeTime(f.time)+' ไม่ใช่ค่าตรวจวัดสด'));}catch(e){body.insertAdjacentHTML('beforeend',note('พยากรณ์ TMD ไม่พร้อม: '+v19Escape(e.message)));}
@@ -574,6 +646,7 @@ function v22Card(icon,heading,main,sub,clickable=''){
  return `<div class="v22card"><div class="v22label">${icon} ${v19Escape(heading)}</div><div class="v22value">${v19Escape(main)}</div><div class="v22detail">${v19Escape(sub)}</div>${clickable}</div>`;
 }
 function v22ResetLayers(){
+ v20Stop();if(v20Layer){map.removeLayer(v20Layer);v20Layer=null;}
  // Switching panels must not recompute all map forecast markers.
  if(typeof window.v22DisableRainPatches==='function')window.v22DisableRainPatches();
  if(typeof window.setCameraMapMode==='function')window.setCameraMapMode(false);

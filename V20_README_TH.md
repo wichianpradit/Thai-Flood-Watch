@@ -1,0 +1,1 @@
+V20: RainViewer radar past frames and optional provider nowcast frames. If no forecast frames, no fabricated future motion. Play/Pause and slider. Requires network and provider access.
