@@ -1,0 +1,4 @@
+V23.2: ย้อนกลับลิงก์ Flood Eye เป็น ./flood-eye.html ตาม V23 เดิม
+จากการเทียบ V23 และ V23.1 พบว่า index.html ต่างกันเฉพาะ URL ลิงก์ Flood Eye เท่านั้น
+ยังไม่ยืนยันสาเหตุข้อมูลทุกเมนูหาย ให้ตรวจสอบ GitHub Pages deployment และ Console/Network หากยังมีปัญหา
+อัปโหลด index.html และ flood-eye.html ใน root เดียวกันบน GitHub Pages
