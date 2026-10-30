@@ -178,6 +178,13 @@ body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!impo
 #moduleBody .cctvScreen{min-height:90px}
 @media(max-width:600px){#moduleBody .cctvThree{grid-template-columns:1fr}#moduleBody .cctvScreen{min-height:165px}}
 </style>
+<style>
+#tfwAlertBackdrop{position:fixed;inset:0;background:rgba(3,16,29,.67);z-index:100000;display:flex;align-items:center;justify-content:center;padding:14px}
+#tfwAlertBox{width:min(620px,100%);max-height:min(85vh,780px);overflow-y:auto;background:#102e42;color:#f3fbff;border:1px solid #5b9cb8;border-radius:15px;box-shadow:0 18px 70px #0009;padding:20px;font:inherit}
+#tfwAlertBox h2{margin:0 0 8px;font-size:21px}#tfwAlertBox .tfwSub{font-size:12px;color:#b6d4e1;margin-bottom:14px}
+.tfwAlertGroup{border:1px solid #365d74;border-radius:10px;padding:12px;margin:10px 0;background:#163c53}.tfwAlertGroup h3{font-size:16px;margin:0 0 8px}.tfwAlertItem{padding:8px 0;border-bottom:1px solid #365d74;font-size:14px;line-height:1.6}.tfwAlertItem:last-child{border:0}
+.tfwAlertBtn{border:0;border-radius:8px;padding:8px 12px;background:#157da5;color:white;cursor:pointer;margin:4px}.tfwAlertClose{background:#dcecf3;color:#102d3b}
+</style>
 </head>
 <body>
 <select id="v3Mode" aria-label="รูปแบบหน้าจอ"><option value="auto">📱 อัตโนมัติ</option><option value="mobile">มือถือ</option><option value="desktop">คอมพิวเตอร์</option></select>
@@ -1115,6 +1122,44 @@ try{show('พื้นที่เสี่ยงน้ำท่วม');setInte
    alert('📊 สถิติ Thai Flood Watch\nออนไลน์ล่าสุด: '+j.online+' แท็บ\nนับในช่วง: '+j.windowSeconds+' วินาที\nเริ่มนับเมื่อเซิร์ฟเวอร์เปิด: '+new Date(j.serverStartedAt).toLocaleString('th-TH')+'\n\nเซสชันใหม่รายชั่วโมง (โดยประมาณ):\n'+(rows||'ยังไม่มีข้อมูล')+'\n\nหมายเหตุ: รีสตาร์ตเซิร์ฟเวอร์แล้วตัวเลขเริ่มใหม่');
   }catch(e){alert(e.message);}
  });
+})();
+</script>
+<script>
+// V21 opening alerts: forecast and station trend are NOT current rainfall or official flood warnings.
+(function(){
+const safe=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const box=document.createElement('div');box.id='tfwAlertBackdrop';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','สถานการณ์ฝนและน้ำท่วม');box.style.display='none';
+box.innerHTML='<div id="tfwAlertBox"><h2>⚠️ แจ้งเตือนสถานการณ์ประเทศไทย</h2><div class="tfwSub" id="tfwAlertTime"></div><div id="tfwAlertContent" aria-live="polite">กำลังตรวจสอบข้อมูลล่าสุด...</div><div style="text-align:right"><button class="tfwAlertBtn" id="tfwAlertRefresh">↻ ตรวจสอบอีกครั้ง</button><button class="tfwAlertBtn tfwAlertClose" id="tfwAlertClose">ปิดแจ้งเตือน</button></div></div>';
+document.body.append(box);
+const content=document.getElementById('tfwAlertContent');
+const get=async url=>{const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),9000);try{const r=await fetch(url,{cache:'no-store',signal:ctrl.signal});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();if(!j.ok)throw Error(j.error||'API ไม่พร้อม');return j;}finally{clearTimeout(timer);}};
+function item(name,details,lat,lon){const coords=Number.isFinite(+lat)&&Number.isFinite(+lon)&&lat!==null&&lon!==null?`<button class="tfwAlertBtn" data-lat="${Number(lat)}" data-lon="${Number(lon)}">ดูบนแผนที่</button>`:'';return `<div class="tfwAlertItem"><b>${safe(name)}</b><div>${safe(details)}</div>${coords}</div>`;}
+async function load(){
+ document.getElementById('tfwAlertTime').textContent='ตรวจสอบเมื่อ '+new Date().toLocaleString('th-TH',{timeZone:'Asia/Bangkok'});
+ content.textContent='กำลังตรวจสอบข้อมูลล่าสุด...';
+ const [rain,water]=await Promise.allSettled([get('/api/tmd/rain-map'),get('/api/flood/monitor')]);
+ let out='<div class="tfwAlertGroup"><h3>🌧️ ฝนตกหนัก ณ ขณะนี้</h3><div class="tfwAlertItem">ยังไม่มีข้อมูลปริมาณฝนตรวจวัดสดที่ยืนยันตำแหน่งและความหนักได้จาก API ที่เชื่อมอยู่ จึงไม่แสดงรายชื่อพื้นที่ว่าฝนตกหนักจริง</div></div>';
+ out+='<div class="tfwAlertGroup"><h3>☔ พื้นที่พยากรณ์ฝนหนัก (ไม่ใช่ฝนที่ตรวจวัด)</h3>';
+ if(rain.status==='fulfilled'){
+  const now=Date.now();const rows=(rain.value.points||[]).map(p=>{
+   const fs=(p.forecasts||[]).filter(f=>{const t=Date.parse(f.time);return Number.isFinite(t)&&t>=now-30*60000&&t<=now+90*60000;});
+   const f=fs.sort((a,b)=>Number(b.data?.rain||0)-Number(a.data?.rain||0))[0];return {p,f,v:Number(f?.data?.rain)};
+  }).filter(x=>x.f&&Number.isFinite(x.v)&&x.v>=20).sort((a,b)=>b.v-a.v).slice(0,8);
+  out+=rows.length?rows.map(x=>item(x.p.province||x.p.name||`พิกัด ${x.p.lat}, ${x.p.lon}`,`คาดการณ์ ${x.v.toFixed(1)} มม. ในชั่วโมงที่ระบุ (${new Date(x.f.time).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})})`,x.p.lat,x.p.lon)).join(''):'<div class="tfwAlertItem">ไม่พบจุดตัวอย่างที่พยากรณ์ฝน ≥20 มม./ชม. ในช่วงใกล้ปัจจุบัน หรือข้อมูลไม่เพียงพอ</div>';
+ }else out+='<div class="tfwAlertItem">ไม่สามารถโหลดข้อมูลพยากรณ์ฝนได้</div>';
+ out+='</div><div class="tfwAlertGroup"><h3>🚩 พื้นที่เฝ้าระวังระดับน้ำเพิ่มขึ้น</h3>';
+ if(water.status==='fulfilled'){
+  const rows=(water.value.watchStations||[]).filter(x=>x.relativeToLatest==='recent'&&Number(x.changeM)>0).sort((a,b)=>Number(b.changeM)-Number(a.changeM)).slice(0,8);
+  out+=rows.length?rows.map(x=>item(`${x.name||'สถานี'} · ${x.province||'ไม่ระบุจังหวัด'}`,`ระดับน้ำเพิ่ม ${Math.round(Number(x.changeM)*100)} ซม. · ตรวจวัด ${x.observedAt||'ไม่ระบุเวลา'} · เป็นสัญญาณเฝ้าระวัง ไม่ใช่ประกาศเตือนน้ำท่วม`,x.lat,x.lon)).join(''):'<div class="tfwAlertItem">ไม่มีสถานีเข้าเกณฑ์การเพิ่มขึ้นที่มีข้อมูลล่าสุด หรือข้อมูลไม่เพียงพอ</div>';
+ }else out+='<div class="tfwAlertItem">ไม่สามารถโหลดข้อมูลระดับน้ำได้</div>';
+ out+='</div><div class="tfwSub">คำเตือน: เกณฑ์ฝนพยากรณ์ ≥20 มม./ชม. ใช้เพื่อคัดกรองเบื้องต้นเท่านั้น ข้อมูลสถานีระดับน้ำเพิ่มขึ้นไม่ยืนยันว่าจะเกิดน้ำท่วม ตรวจสอบประกาศจากหน่วยงานทางการก่อนตัดสินใจ</div>';
+ content.innerHTML=out;
+ content.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{box.style.display='none';if(typeof map!=='undefined'){map.setView([Number(b.dataset.lat),Number(b.dataset.lon)],9);}}));
+}
+document.getElementById('tfwAlertClose').onclick=()=>box.style.display='none';
+document.getElementById('tfwAlertRefresh').onclick=load;
+window.tfwOpenAlerts=()=>{box.style.display='flex';load();};
+setTimeout(()=>window.tfwOpenAlerts(),900);
 })();
 </script>
 </body>
