@@ -185,6 +185,46 @@ body.v3-force-desktop #modulePanel[style*="display:block"] {overflow-y:auto!impo
 .tfwAlertGroup{border:1px solid #365d74;border-radius:10px;padding:12px;margin:10px 0;background:#163c53}.tfwAlertGroup h3{font-size:16px;margin:0 0 8px}.tfwAlertItem{padding:8px 0;border-bottom:1px solid #365d74;font-size:14px;line-height:1.6}.tfwAlertItem:last-child{border:0}
 .tfwAlertBtn{border:0;border-radius:8px;padding:8px 12px;background:#157da5;color:white;cursor:pointer;margin:4px}.tfwAlertClose{background:#dcecf3;color:#102d3b}
 </style>
+<style>
+
+/* V23.9 Mobile usability: all ten modules accessible; desktop untouched */
+#tfwMobileNav,#tfwMobileDrawer,#tfwMobileShade{display:none}
+@media(max-width:820px){
+body:not(.v3-force-desktop) .app{height:100dvh;grid-template-rows:66px minmax(0,1fr)}
+body:not(.v3-force-desktop) header{grid-template-columns:minmax(0,1fr);padding:7px 12px;gap:0}
+body:not(.v3-force-desktop) .brand{min-width:0}
+body:not(.v3-force-desktop) .brand h1{font-size:17px}
+body:not(.v3-force-desktop) .brand p{font-size:9px;max-width:none}
+body:not(.v3-force-desktop) .national-summary{display:none}
+body:not(.v3-force-desktop) #v3Mode{top:14px;right:10px;max-width:99px;font-size:10px;padding:5px}
+body:not(.v3-force-desktop) header{padding-right:116px}
+body:not(.v3-force-desktop) #v3BottomNav{display:none!important}
+body:not(.v3-force-desktop) #tfwMobileNav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;bottom:0;left:0;right:0;z-index:1800;height:calc(65px + env(safe-area-inset-bottom));padding:5px 4px env(safe-area-inset-bottom);background:#081e31;border-top:1px solid #286287;box-shadow:0 -6px 25px #0007}
+#tfwMobileNav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:transparent;color:#bed8ea;font-size:10px;min-width:0;border-radius:10px;touch-action:manipulation}
+#tfwMobileNav button .ico{font-size:23px;line-height:1.25}
+#tfwMobileNav button.active{background:#123e60;color:#72d5ff;font-weight:700}
+body:not(.v3-force-desktop) .maparea{bottom:calc(65px + env(safe-area-inset-bottom))!important}
+body:not(.v3-force-desktop) .bottom{bottom:calc(65px + env(safe-area-inset-bottom))!important}
+body:not(.v3-force-desktop) .rightbar{bottom:calc(65px + env(safe-area-inset-bottom))!important;max-height:calc(100dvh - 78px - env(safe-area-inset-bottom));height:min(78dvh,760px)!important;z-index:1250;border-radius:18px 18px 0 0}
+body:not(.v3-force-desktop) #v3SheetClose{font-size:12px;padding:8px 12px;min-height:37px}
+body:not(.v3-force-desktop) #modulePanel{padding-top:13px}
+body:not(.v3-force-desktop) #modulePanel input,body:not(.v3-force-desktop) #modulePanel select,body:not(.v3-force-desktop) #modulePanel textarea{max-width:100%;font-size:16px}
+body:not(.v3-force-desktop) #modulePanel button{min-height:36px}
+body:not(.v3-force-desktop) #tfwMobileShade{display:none;position:fixed;inset:0;background:#000a;z-index:1890}
+body:not(.v3-force-desktop).tfw-drawer-open #tfwMobileShade{display:block}
+body:not(.v3-force-desktop) #tfwMobileDrawer{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:1900;max-height:min(83dvh,720px);flex-direction:column;background:#092238;border:1px solid #2c6c91;border-radius:20px 20px 0 0;box-shadow:0 -15px 55px #0009;transform:translateY(110%);visibility:hidden;transition:transform .2s ease,visibility .2s;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}
+body:not(.v3-force-desktop).tfw-drawer-open #tfwMobileDrawer{transform:translateY(0);visibility:visible}
+#tfwMobileDrawer .tfw-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #2b5774;font-size:17px;font-weight:700}
+#tfwMobileDrawer .tfw-drawer-head button{background:#174a68;color:white;border:1px solid #3a789e;border-radius:9px;padding:6px 12px}
+#tfwMobileDrawer .tfw-drawer-items{overflow-y:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:14px;overscroll-behavior:contain}
+#tfwMobileDrawer .tfw-drawer-items button{display:flex;gap:9px;align-items:center;text-align:left;min-height:66px;background:#10354f;color:#f0f8ff;border:1px solid #285d7e;border-radius:12px;padding:10px;font-size:12px;line-height:1.4}
+#tfwMobileDrawer .tfw-drawer-items button .tfw-drawer-icon{font-size:24px;flex:0 0 29px}
+#tfwMobileDrawer .tfw-drawer-items button.active{border-color:#54b9ff;background:#15577c}
+body:not(.v3-force-desktop) .map-tabs{top:8px}
+}
+@media(max-width:360px){#tfwMobileDrawer .tfw-drawer-items{gap:6px;padding:9px}#tfwMobileDrawer .tfw-drawer-items button{font-size:11px;padding:7px}}
+
+</style>
 </head>
 <body>
 <select id="v3Mode" aria-label="รูปแบบหน้าจอ"><option value="auto">📱 อัตโนมัติ</option><option value="mobile">มือถือ</option><option value="desktop">คอมพิวเตอร์</option></select>
@@ -1189,5 +1229,28 @@ function tfwShowFloodUploadInRightPanel(){
  }catch(err){body.textContent='ไม่สามารถเปิดแบบฟอร์มอัปโหลดภาพได้: '+err.message;}
 }
 </script>
+
+<script>
+/* V23.9: navigation enhancement only; calls the existing menu handlers, no API changes. */
+(function(){
+ const nav=document.querySelectorAll('aside .nav');
+ const bar=document.createElement('nav');bar.id='tfwMobileNav';bar.setAttribute('aria-label','เมนูหลักสำหรับมือถือ');
+ const quick=[{i:0,icon:'🗺️',name:'ภาพรวม'},{i:1,icon:'🌧️',name:'ฝน'},{i:3,icon:'💧',name:'ระดับน้ำ'},{i:8,icon:'📸',name:'ส่งภาพ'}];
+ function btn(label,icon,click){const b=document.createElement('button');b.type='button';b.innerHTML='<span class="ico"></span><span class="txt"></span>';b.querySelector('.ico').textContent=icon;b.querySelector('.txt').textContent=label;b.addEventListener('click',click);return b}
+ const shade=document.createElement('div');shade.id='tfwMobileShade';shade.addEventListener('click',close);
+ const drawer=document.createElement('section');drawer.id='tfwMobileDrawer';drawer.setAttribute('aria-label','เมนูทั้งหมด');drawer.innerHTML='<div class="tfw-drawer-head"><span>☰ เมนูทั้งหมด</span><button type="button" id="tfwDrawerClose">✕ ปิด</button></div><div class="tfw-drawer-items"></div>';
+ drawer.querySelector('#tfwDrawerClose').addEventListener('click',close);
+ function close(){document.body.classList.remove('tfw-drawer-open')}
+ function open(){document.body.classList.add('tfw-drawer-open')}
+ function select(i){close();const n=nav[i];if(!n)return;n.click();setTimeout(()=>{document.body.classList.toggle('v3-sheet-open',i!==0);if(typeof map!=='undefined'&&map.invalidateSize)map.invalidateSize()},70);refresh(i)}
+ function refresh(i){bar.querySelectorAll('button[data-index]').forEach(b=>b.classList.toggle('active',Number(b.dataset.index)===i));drawer.querySelectorAll('button[data-index]').forEach(b=>b.classList.toggle('active',Number(b.dataset.index)===i))}
+ quick.forEach(q=>{const b=btn(q.name,q.icon,()=>select(q.i));b.dataset.index=q.i;bar.appendChild(b)});
+ bar.appendChild(btn('เมนูทั้งหมด','☰',open));
+ nav.forEach((n,i)=>{const name=n.querySelector('b')?.textContent?.trim()||('เมนู '+(i+1));const icon=n.querySelector('.ni')?.textContent?.trim()||'•';const b=document.createElement('button');b.type='button';b.dataset.index=i;b.innerHTML='<span class="tfw-drawer-icon"></span><span></span>';b.querySelector('.tfw-drawer-icon').textContent=icon;b.lastElementChild.textContent=name;b.addEventListener('click',()=>select(i));drawer.querySelector('.tfw-drawer-items').appendChild(b);n.addEventListener('click',()=>{refresh(i);close()})});
+ document.body.append(shade,drawer,bar);refresh(0);
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+})();
+</script>
+
 </body>
 </html>
