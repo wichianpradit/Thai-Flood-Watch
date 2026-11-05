@@ -75,4 +75,36 @@ const result=await response.json().catch(()=>({}));
 if(!response.ok)throw new Error(result.error||('HTTP '+response.status));
 $('msg').textContent='ส่งรายงานสำเร็จ รอผู้ดูแลตรวจสอบก่อนแสดงสาธารณะ (เลขที่ '+result.id+')';
 $('report').reset();$('preview').hidden=true;await loadSharedReports();map.setView([lat,lon],11);
-window.parent?.postMessage({type:'TFW_FLOOD_REPORT_SUBMITTED'},'*');}catch(err){$('msg').textContent='ส่งรายงานไม่สำเร็จ: '+err.message;}};render();loadSharedReports();</script></body></html>
+window.parent?.postMessage({type:'TFW_FLOOD_REPORT_SUBMITTED'},'*');}catch(err){$('msg').textContent='ส่งรายงานไม่สำเร็จ: '+err.message;}};render();loadSharedReports();</script><script>
+// V24.4: request GPS from top-level document; iframe srcdoc may have an opaque origin.
+(function(){
+ const btn=document.getElementById('myLocation'),status=document.getElementById('locationStatus');
+ if(!btn)return;
+ function message(t){if(status)status.textContent=t;}
+ btn.addEventListener('click',function(){
+   message('กำลังค้นหาตำแหน่งปัจจุบัน…');btn.disabled=true;
+   if(window.parent!==window){
+     window.parent.postMessage({type:'TFW_GPS_REQUEST'},'*');
+   }else{
+     locateHere();
+   }
+ });
+ function locateHere(){
+   if(!navigator.geolocation){btn.disabled=false;message('เบราว์เซอร์ไม่รองรับ GPS');return;}
+   navigator.geolocation.getCurrentPosition(pos=>applyPosition(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy),err=>{btn.disabled=false;message('ไม่สามารถอ่านตำแหน่ง: '+err.message+' (ตรวจสอบสิทธิ์ตำแหน่งและ HTTPS)')},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+ }
+ function applyPosition(lat,lon,accuracy){
+   btn.disabled=false;
+   if(!(lat>=5&&lat<=21&&lon>=97&&lon<=106)){message('ตำแหน่งที่ตรวจพบอยู่นอกขอบเขตประเทศไทย กรุณาเลือกบนแผนที่');return;}
+   document.getElementById('lat').value=lat.toFixed(6);
+   document.getElementById('lon').value=lon.toFixed(6);
+   message('ระบุตำแหน่งแล้ว (คลาดเคลื่อนประมาณ '+Math.round(accuracy||0)+' เมตร) กรุณาตรวจสอบว่าเป็นจุดน้ำท่วมจริง');
+   if(typeof map!=='undefined'&&map&&map.setView){map.setView([lat,lon],15);}
+ }
+ window.addEventListener('message',function(e){
+   if(e.source!==window.parent||!e.data||e.data.type!=='TFW_GPS_RESULT')return;
+   if(e.data.error){btn.disabled=false;message(e.data.error);return;}
+   applyPosition(Number(e.data.lat),Number(e.data.lon),Number(e.data.accuracy));
+ });
+})();
+</script></body></html>
